@@ -1,29 +1,87 @@
 import React, { useState } from 'react';
 
+const makeEmptyQuestion = () => ({
+  id: Date.now() + Math.floor(Math.random() * 10000),
+  text: '',
+  options: ['', ''],
+  correctAnswer: 0
+});
+
 const TestWizard = ({ sections, onBack, onSave }) => {
-  // Each section gets its own questions array
+  // Each section gets its own questions array (MCQ shape: id, text, options, correctAnswer)
   const [sectionQuestions, setSectionQuestions] = useState(
     sections.map(section => ({
-      sectionId: section.id,
-      sectionName: section.name,
-      questions: []
+      sectionId: section.id ?? section.sectionId,
+      sectionName: section.name ?? section.sectionName,
+      questions: section.questions ?? []
     }))
   );
 
   const handleAddQuestion = (sectionId) => {
     setSectionQuestions(sectionQuestions.map(sq =>
       sq.sectionId === sectionId
-        ? { ...sq, questions: [...sq.questions, { question: '', answer: '' }] }
+        ? { ...sq, questions: [...sq.questions, makeEmptyQuestion()] }
         : sq
     ));
   };
 
-  const handleQuestionChange = (sectionId, idx, field, value) => {
+  const handleQuestionFieldChange = (sectionId, qIdx, field, value) => {
     setSectionQuestions(sectionQuestions.map(sq => {
       if (sq.sectionId !== sectionId) return sq;
       const questions = sq.questions.map((q, i) =>
-        i === idx ? { ...q, [field]: value } : q
+        i === qIdx ? { ...q, [field]: value } : q
       );
+      return { ...sq, questions };
+    }));
+  };
+
+  const handleOptionChange = (sectionId, qIdx, optIdx, value) => {
+    setSectionQuestions(sectionQuestions.map(sq => {
+      if (sq.sectionId !== sectionId) return sq;
+      const questions = sq.questions.map((q, i) => {
+        if (i !== qIdx) return q;
+        const options = q.options.map((o, oi) => oi === optIdx ? value : o);
+        return { ...q, options };
+      });
+      return { ...sq, questions };
+    }));
+  };
+
+  const handleAddOption = (sectionId, qIdx) => {
+    setSectionQuestions(sectionQuestions.map(sq => {
+      if (sq.sectionId !== sectionId) return sq;
+      const questions = sq.questions.map((q, i) => {
+        if (i !== qIdx) return q;
+        return { ...q, options: [...q.options, ''] };
+      });
+      return { ...sq, questions };
+    }));
+  };
+
+  const handleRemoveOption = (sectionId, qIdx, optIdx) => {
+    setSectionQuestions(sectionQuestions.map(sq => {
+      if (sq.sectionId !== sectionId) return sq;
+      const questions = sq.questions.map((q, i) => {
+        if (i !== qIdx) return q;
+        const options = q.options.filter((_, oi) => oi !== optIdx);
+        let correctAnswer = q.correctAnswer;
+        if (options.length === 0) {
+          // ensure at least one option
+          options.push('');
+          correctAnswer = 0;
+        } else if (correctAnswer >= options.length) {
+          correctAnswer = options.length - 1;
+        }
+        return { ...q, options, correctAnswer };
+      });
+      return { ...sq, questions };
+    }));
+  };
+
+  const handleSetCorrect = (sectionId, qIdx, optIdx) => {
+    setSectionQuestions(sectionQuestions.map(sq => {
+      if (sq.sectionId !== sectionId) return sq;
+      const questions = sq.questions.map((q, i) => i === qIdx ? { ...q, correctAnswer: optIdx } : q);
       return { ...sq, questions };
     }));
   };
@@ -37,46 +95,90 @@ const TestWizard = ({ sections, onBack, onSave }) => {
   };
 
   const handleSave = () => {
-    onSave(sectionQuestions);
+    // Ensure minimal validation: trim question text and options
+    const cleaned = sectionQuestions.map(sq => ({
+      ...sq,
+      questions: sq.questions.map(q => ({
+        ...q,
+        text: q.text.trim(),
+        options: q.options.map(o => o.trim())
+      }))
+    }));
+    onSave(cleaned);
   };
 
   return (
     <div className="max-w-3xl mx-auto">
       <div className="bg-white rounded-lg shadow-lg p-10">
         <h2 className="text-2xl font-bold mb-6">Add Questions to Sections</h2>
-        {sectionQuestions.map((section, sIdx) => (
+  {sectionQuestions.map((section) => (
           <div key={section.sectionId} className="mb-8 border-b pb-6">
             <h3 className="text-lg font-semibold mb-4">Section: {section.sectionName}</h3>
             {section.questions.map((q, idx) => (
-              <div key={idx} className="mb-4 flex gap-2 items-end">
-                <div className="flex-1">
+              <div key={q.id} className="mb-6 p-4 border rounded">
+                <div className="mb-3">
                   <label className="block text-gray-700 text-sm mb-1">Question</label>
                   <input
                     type="text"
-                    value={q.question}
-                    onChange={e => handleQuestionChange(section.sectionId, idx, 'question', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded mb-1"
+                    value={q.text}
+                    onChange={e => handleQuestionFieldChange(section.sectionId, idx, 'text', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded"
                     placeholder="Enter question"
                   />
                 </div>
-                <div className="flex-1">
-                  <label className="block text-gray-700 text-sm mb-1">Answer</label>
-                  <input
-                    type="text"
-                    value={q.answer}
-                    onChange={e => handleQuestionChange(section.sectionId, idx, 'answer', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded mb-1"
-                    placeholder="Enter answer"
-                  />
+                <div className="mb-3">
+                  <label className="block text-gray-700 text-sm mb-2">Options</label>
+                  <div className="space-y-2">
+                    {q.options.map((opt, oi) => (
+                      <div key={oi} className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleSetCorrect(section.sectionId, idx, oi)}
+                          className={`w-8 h-8 rounded-full border ${q.correctAnswer === oi ? 'bg-green-500 text-white' : 'bg-white text-gray-700'} flex items-center justify-center`}
+                          title="Mark as correct"
+                        >
+                          {String.fromCharCode(65 + oi)}
+                        </button>
+                        <input
+                          type="text"
+                          value={opt}
+                          onChange={e => handleOptionChange(section.sectionId, idx, oi, e.target.value)}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded"
+                          placeholder={`Option ${String.fromCharCode(65 + oi)}`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveOption(section.sectionId, idx, oi)}
+                          className="px-2 py-1 text-red-500 hover:text-red-700"
+                          title="Remove option"
+                        >
+                          &times;
+                        </button>
+                      </div>
+                    ))}
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => handleAddOption(section.sectionId, idx)}
+                        className="mt-2 px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                      >
+                        + Add Option
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleRemoveQuestion(section.sectionId, idx)}
-                  className="ml-2 px-2 py-1 text-red-500 hover:text-red-700"
-                  title="Remove question"
-                >
-                  &times;
-                </button>
+                <div className="flex justify-between items-center">
+                  <div className="text-sm text-gray-600">Correct: {String.fromCharCode(65 + q.correctAnswer)}</div>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveQuestion(section.sectionId, idx)}
+                      className="px-3 py-1 text-red-500 hover:text-red-700"
+                    >
+                      Remove Question
+                    </button>
+                  </div>
+                </div>
               </div>
             ))}
             <button

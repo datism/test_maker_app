@@ -1,9 +1,9 @@
 import React from 'react';
-import { ChevronLeft, Shuffle, Plus, Calendar, FileText, Clock, Copy, Trash2 } from 'lucide-react';
+import { ChevronLeft, Shuffle, Plus, Calendar, FileText, Clock, Copy, Trash2, Edit } from 'lucide-react';
 
-const ProjectDetail = ({ selectedProject, onBack, onShuffleTests, onAddTest, onTestClick, onDuplicateTest, onDeleteTest }) => (
+const ProjectDetail = ({ selectedProject, onBack, onShuffleTests, onAddTest, onTestClick, onDuplicateTest, onDeleteTest, onEditMasterTest }) => (
   <div className="max-w-7xl mx-auto">
-    <div className="mb-6">
+  <div className="mb-6">
       <button
         onClick={onBack}
         className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
@@ -12,6 +12,24 @@ const ProjectDetail = ({ selectedProject, onBack, onShuffleTests, onAddTest, onT
         <span>Back to Projects</span>
       </button>
       <div className="bg-white rounded-lg shadow-md p-8 border border-gray-200">
+        {/* Master Test Section */}
+        <div className="mb-6 p-4 bg-blue-50 rounded border border-blue-200 flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-blue-800 mb-1">Master Test</h2>
+            <div className="text-sm text-gray-700">
+              {selectedProject.masterTest && selectedProject.masterTest.sections && selectedProject.masterTest.sections.length > 0
+                ? `${selectedProject.masterTest.sections.reduce((sum, s) => sum + (s.questions?.length || 0), 0)} questions in ${selectedProject.masterTest.sections.length} sections`
+                : 'No questions yet'}
+            </div>
+          </div>
+          <button
+            onClick={() => onEditMasterTest && onEditMasterTest(selectedProject.masterTest)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+          >
+            <Edit size={18} />
+            <span>Edit Master Test</span>
+          </button>
+        </div>
         <div className="flex justify-between items-start">
           <div>
             <h1 className="text-4xl font-bold text-gray-900 mb-3">{selectedProject.name}</h1>
