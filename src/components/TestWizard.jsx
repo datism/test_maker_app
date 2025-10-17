@@ -1,4 +1,7 @@
+
 import React, { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useProjectsStore } from '../store/useProjectsStore';
 
 const makeEmptyQuestion = () => ({
   id: Date.now() + Math.floor(Math.random() * 10000),
@@ -7,14 +10,31 @@ const makeEmptyQuestion = () => ({
   correctAnswer: 0
 });
 
-const TestWizard = ({ sections, onBack, onSave }) => {
-  // Each section gets its own questions array (MCQ shape: id, text, options, correctAnswer)
+export default function TestWizard() {
+  const { selectedProject, updateProject } = useProjectsStore();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const editingMasterTest = location.state && location.state.editingMasterTest;
+  const editTestId = location.state && location.state.editTestId;
+
+  let sections = [];
+  if (editingMasterTest) {
+    sections = selectedProject?.masterTest?.sections || [];
+  } else if (editTestId) {
+    const test = selectedProject?.tests?.find(t => t.id === editTestId);
+    sections = test?.sections || [];
+  } else {
+    sections = selectedProject?.sections || [];
+  }
+
   const [sectionQuestions, setSectionQuestions] = useState(
-    sections.map(section => ({
-      sectionId: section.id ?? section.sectionId,
-      sectionName: section.name ?? section.sectionName,
-      questions: section.questions ?? []
-    }))
+    Array.isArray(sections)
+      ? sections.map(section => ({
+          sectionId: section.sectionId ?? section.id,
+          sectionName: section.sectionName ?? section.name,
+          questions: section.questions ?? []
+        }))
+      : []
   );
 
   const handleAddQuestion = (sectionId) => {
@@ -94,8 +114,9 @@ const TestWizard = ({ sections, onBack, onSave }) => {
     }));
   };
 
-  const handleSave = () => {
-    // Ensure minimal validation: trim question text and options
+
+  function handleSave() {
+    // Clean up questions
     const cleaned = sectionQuestions.map(sq => ({
       ...sq,
       questions: sq.questions.map(q => ({
@@ -104,14 +125,66 @@ const TestWizard = ({ sections, onBack, onSave }) => {
         options: q.options.map(o => o.trim())
       }))
     }));
-    onSave(cleaned);
-  };
+    if (!selectedProject) return;
+    if (editingMasterTest) {
+      // Save to masterTest
+      const updatedProject = {
+        ...selectedProject,
+        masterTest: {
+          ...selectedProject.masterTest,
+          sections: cleaned,
+          questionCount: cleaned.reduce((sum, s) => sum + s.questions.length, 0)
+        }
+      };
+      updateProject(updatedProject);
+      navigate(`/project/${selectedProject.id}`);
+      return;
+    }
+    if (editTestId) {
+      // Update existing test
+      const updatedProject = {
+        ...selectedProject,
+        tests: selectedProject.tests.map(t =>
+          t.id === editTestId
+            ? {
+                ...t,
+                sections: cleaned,
+                questionCount: cleaned.reduce((sum, s) => sum + s.questions.length, 0)
+              }
+            : t
+        )
+      };
+      updateProject(updatedProject);
+      navigate(`/project/${selectedProject.id}`);
+      return;
+    }
+    // Save as a new test
+    const updatedProject = {
+      ...selectedProject,
+      tests: [
+        ...(selectedProject.tests || []),
+        {
+          id: Date.now(),
+          name: `Test ${(selectedProject.tests?.length || 0) + 1}`,
+          createdDate: new Date().toISOString().split('T')[0],
+          sections: cleaned,
+          questionCount: cleaned.reduce((sum, s) => sum + s.questions.length, 0)
+        }
+      ]
+    };
+    updateProject(updatedProject);
+    navigate(`/project/${selectedProject.id}`);
+  }
+
+  if (!Array.isArray(sectionQuestions) || sectionQuestions.length === 0) {
+    return <div className="p-6 text-gray-500">No sections available for this test.</div>;
+  }
 
   return (
     <div className="max-w-3xl mx-auto">
       <div className="bg-white rounded-lg shadow-lg p-10">
         <h2 className="text-2xl font-bold mb-6">Add Questions to Sections</h2>
-  {sectionQuestions.map((section) => (
+        {sectionQuestions.map((section) => (
           <div key={section.sectionId} className="mb-8 border-b pb-6">
             <h3 className="text-lg font-semibold mb-4">Section: {section.sectionName}</h3>
             {section.questions.map((q, idx) => (
@@ -192,7 +265,7 @@ const TestWizard = ({ sections, onBack, onSave }) => {
         ))}
         <div className="flex justify-between mt-8">
           <button
-            onClick={onBack}
+            onClick={() => navigate(-1)}
             className="px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
           >
             Back
@@ -207,6 +280,4 @@ const TestWizard = ({ sections, onBack, onSave }) => {
       </div>
     </div>
   );
-};
-
-export default TestWizard;
+}
