@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useShuffleTests } from '../hooks/useShuffleTests';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Shuffle, Plus, Calendar, FileText, Clock, Trash2, Edit } from 'lucide-react';
+import { ChevronLeft, Shuffle, Plus, Calendar, FileText, Clock, Trash2, Edit, Download } from 'lucide-react';
+import ExportModal from './ExportModal';
 import { useProjectsStore } from '../store/useProjectsStore';
 
 export default function ProjectDetail() {
@@ -15,6 +16,8 @@ export default function ProjectDetail() {
   const [shuffleError, setShuffleError] = useState('');
   const [shuffleValid, setShuffleValid] = useState(true);
   const [maxPerms, setMaxPerms] = useState(0);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportTest, setExportTest] = useState(null);
 
   React.useEffect(() => {
     if (showShuffleModal && selectedProject?.masterTest?.sections) {
@@ -36,7 +39,8 @@ export default function ProjectDetail() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <>
+      <div className="max-w-7xl mx-auto">
       {/* Shuffle Modal */}
       {showShuffleModal && selectedProject.masterTest && (
         <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
@@ -183,6 +187,13 @@ export default function ProjectDetail() {
                 <span>Shuffle Tests</span>
               </button>
               <button
+                onClick={() => setShowExportModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+              >
+                <Download size={18} />
+                <span>Export</span>
+              </button>
+              <button
                 onClick={handleAddTest}
                 className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
               >
@@ -228,16 +239,29 @@ export default function ProjectDetail() {
                       )}
                     </div>
                   </div>
-                  <button
-                    onClick={e => {
-                      e.stopPropagation();
-                      if (window.confirm('Delete this test?')) deleteTest(test.id);
-                    }}
-                    className="ml-2 p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Delete test"
-                  >
-                    <Trash2 size={18} />
-                  </button>
+                  <div className="ml-2 flex items-center gap-2">
+                    <button
+                      onClick={e => {
+                        e.stopPropagation();
+                        setExportTest(test);
+                        setShowExportModal(true);
+                      }}
+                      className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                      title="Export test"
+                    >
+                      <Download size={18} />
+                    </button>
+                    <button
+                      onClick={e => {
+                        e.stopPropagation();
+                        if (window.confirm('Delete this test?')) deleteTest(test.id);
+                      }}
+                      className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Delete test"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
                 </div>
                 <div className="flex items-center text-xs text-gray-500">
                   <Calendar size={14} className="mr-1" />
@@ -250,6 +274,8 @@ export default function ProjectDetail() {
           )}
         </div>
       </div>
-    </div>
+      </div>
+      <ExportModal open={showExportModal} test={exportTest} onClose={() => { setShowExportModal(false); setExportTest(null); }} />
+    </>
   );
 }
