@@ -1,4 +1,6 @@
 import { Document, Packer, Paragraph, TextRun, AlignmentType } from 'docx';
+
+
 // Estimate text width for spacing
 function estimateTextWidth(text, fontSize = 12, font = "Times New Roman") {
   const avgCharWidth = 0.6;
@@ -6,36 +8,51 @@ function estimateTextWidth(text, fontSize = 12, font = "Times New Roman") {
 }
 
 // Format MCQ options as plain text with smart spacing
-function formatQuestionForDocx(questionText, answers) {
+function formatQuestionForDocx(answers) {
   const font = "Times New Roman";
   const fontSize = 12;
-  const pageWidth = 500;
+  const pageWidth = 500; // in "text width" units (you can adjust)
+  const spaceWidth = estimateTextWidth(" ", fontSize, font);
+
   const labeled = answers.map((ans, i) => `${String.fromCharCode(65 + i)}. ${ans}`);
   const widths = labeled.map(ans => estimateTextWidth(ans, fontSize, font));
+
+  // For 4+ options → fallback to one answer per line (safest)
+  if (answers.length > 4) {
+    return labeled.join("\n");
+  }
+
+  // Try to fit all on one line if <= 4 options
   const minSpaces = 16;
-  const totalWidth = widths.reduce((a, b) => a + b, 0) + minSpaces * 3 * estimateTextWidth(" ", fontSize, font);
+  const totalWidth = widths.reduce((a, b) => a + b, 0) + (answers.length - 1) * minSpaces * spaceWidth;
   if (totalWidth <= pageWidth) {
-    const spaceWidth = estimateTextWidth(" ", fontSize, font);
     const remaining = pageWidth - widths.reduce((a, b) => a + b, 0);
-    const spacesBetween = Math.floor(remaining / (3 * spaceWidth));
+    const spacesBetween = Math.floor(remaining / ((answers.length - 1) * spaceWidth));
     const spaceStr = " ".repeat(Math.max(minSpaces, spacesBetween));
-    return `${labeled.join(spaceStr)}`;
+    return labeled.join(spaceStr);
   }
-  const minSpaces2 = 32;
-  const line1Width = widths[0] + widths[1] + minSpaces2 * estimateTextWidth(" ", fontSize, font);
-  const line2Width = widths[2] + widths[3] + minSpaces2 * estimateTextWidth(" ", fontSize, font);
-  if (line1Width <= pageWidth && line2Width <= pageWidth) {
-    const spaceWidth = estimateTextWidth(" ", fontSize, font);
-    const rem1 = pageWidth - (widths[0] + widths[1]);
-    const rem2 = pageWidth - (widths[2] + widths[3]);
-    const spacesBetween1 = Math.floor(rem1 / spaceWidth);
-    const spacesBetween2 = Math.floor(rem2 / spaceWidth);
-    const spaceStr1 = " ".repeat(Math.max(minSpaces2, spacesBetween1));
-    const spaceStr2 = " ".repeat(Math.max(minSpaces2, spacesBetween2));
-    return `${labeled[0]}${spaceStr1}${labeled[1]}\n${labeled[2]}${spaceStr2}${labeled[3]}`;
+
+  // For exactly 4 options → check 2 per line fallback
+  if (answers.length === 4) {
+    const minSpaces2 = 32;
+    const line1Width = widths[0] + widths[1] + minSpaces2 * spaceWidth;
+    const line2Width = widths[2] + widths[3] + minSpaces2 * spaceWidth;
+    if (line1Width <= pageWidth && line2Width <= pageWidth) {
+      const rem1 = pageWidth - (widths[0] + widths[1]);
+      const rem2 = pageWidth - (widths[2] + widths[3]);
+      const spacesBetween1 = Math.floor(rem1 / spaceWidth);
+      const spacesBetween2 = Math.floor(rem2 / spaceWidth);
+      const spaceStr1 = " ".repeat(Math.max(minSpaces2, spacesBetween1));
+      const spaceStr2 = " ".repeat(Math.max(minSpaces2, spacesBetween2));
+      return `${labeled[0]}${spaceStr1}${labeled[1]}\n${labeled[2]}${spaceStr2}${labeled[3]}`;
+    }
   }
+
+  // Otherwise, one line per answer
   return labeled.join("\n");
 }
+
+
 import { saveAs } from 'file-saver';
 
 // Small helper to strip tags but keep inline styles for basic bold/underline
@@ -122,7 +139,7 @@ export async function exportTestDocx({ headerHtml = '', test = null, filename = 
 
       // Options as plain text with smart spacing
       const opts = Array.isArray(q.options) ? q.options : [];
-      const formatted = formatQuestionForDocx(q.text, opts);
+      const formatted = formatQuestionForDocx(opts);
       formatted.split('\n').forEach(line => {
         allChildren.push(new Paragraph({ children: [new TextRun({ text: line, size: fontSize })] }));
       });
