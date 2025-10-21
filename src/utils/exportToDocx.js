@@ -1,150 +1,136 @@
-import { Document, Packer, Paragraph, TextRun, AlignmentType } from 'docx';
-
-
-// Estimate text width for spacing
-function estimateTextWidth(text, fontSize = 12, font = "Times New Roman") {
-  const avgCharWidth = 0.6;
-  return text.length * fontSize * avgCharWidth;
-}
-
-// Format MCQ options as plain text with smart spacing
-function formatQuestionForDocx(answers) {
-  const font = "Times New Roman";
-  const fontSize = 12;
-  const pageWidth = 500; // in "text width" units (you can adjust)
-  const spaceWidth = estimateTextWidth(" ", fontSize, font);
-
-  const labeled = answers.map((ans, i) => `${String.fromCharCode(65 + i)}. ${ans}`);
-  const widths = labeled.map(ans => estimateTextWidth(ans, fontSize, font));
-
-  // For 4+ options → fallback to one answer per line (safest)
-  if (answers.length > 4) {
-    return labeled.join("\n");
-  }
-
-  // Try to fit all on one line if <= 4 options
-  const minSpaces = 16;
-  const totalWidth = widths.reduce((a, b) => a + b, 0) + (answers.length - 1) * minSpaces * spaceWidth;
-  if (totalWidth <= pageWidth) {
-    const remaining = pageWidth - widths.reduce((a, b) => a + b, 0);
-    const spacesBetween = Math.floor(remaining / ((answers.length - 1) * spaceWidth));
-    const spaceStr = " ".repeat(Math.max(minSpaces, spacesBetween));
-    return labeled.join(spaceStr);
-  }
-
-  // For exactly 4 options → check 2 per line fallback
-  if (answers.length === 4) {
-    const minSpaces2 = 32;
-    const line1Width = widths[0] + widths[1] + minSpaces2 * spaceWidth;
-    const line2Width = widths[2] + widths[3] + minSpaces2 * spaceWidth;
-    if (line1Width <= pageWidth && line2Width <= pageWidth) {
-      const rem1 = pageWidth - (widths[0] + widths[1]);
-      const rem2 = pageWidth - (widths[2] + widths[3]);
-      const spacesBetween1 = Math.floor(rem1 / spaceWidth);
-      const spacesBetween2 = Math.floor(rem2 / spaceWidth);
-      const spaceStr1 = " ".repeat(Math.max(minSpaces2, spacesBetween1));
-      const spaceStr2 = " ".repeat(Math.max(minSpaces2, spacesBetween2));
-      return `${labeled[0]}${spaceStr1}${labeled[1]}\n${labeled[2]}${spaceStr2}${labeled[3]}`;
-    }
-  }
-
-  // Otherwise, one line per answer
-  return labeled.join("\n");
-}
+import { Document, Packer, Paragraph, TextRun, TabStopType } from 'docx';
 
 
 import { saveAs } from 'file-saver';
 
-// Small helper to strip tags but keep inline styles for basic bold/underline
-function parseHeaderHtml(headerHtml, defaultStyle) {
-  // Very small parser: handle <b>, <strong>, <u>, <span style="font-size:..">, <div>/<p>
-  // Return an array of Paragraphs (docx Paragraph objects) or plain objects we convert later
-  const container = document.createElement('div');
-  container.innerHTML = headerHtml || '';
-  const paragraphs = [];
-  Array.from(container.childNodes).forEach(node => {
-    const runs = [];
-    function walk(n) {
-      if (n.nodeType === Node.TEXT_NODE) {
-        runs.push({ text: n.nodeValue, bold: false, underline: false });
-      } else if (n.nodeType === Node.ELEMENT_NODE) {
-        const tag = n.tagName.toLowerCase();
-        const isBold = tag === 'b' || tag === 'strong';
-        const isUnderline = tag === 'u';
-        if (tag === 'br') {
-          runs.push({ break: true });
-        } else if (tag === 'span' || tag === 'div' || tag === 'p') {
-          const style = n.getAttribute('style') || '';
-          const sizeMatch = style.match(/font-size:\s*(\d+)px/);
-          const size = sizeMatch ? parseInt(sizeMatch[1], 10) : defaultStyle.fontSize;
-          const alignMatch = style.match(/text-align:\s*(left|center|right)/);
-          const align = alignMatch ? alignMatch[1] : defaultStyle.alignment || 'left';
-          // recurse children
-          Array.from(n.childNodes).forEach(child => {
-            if (child.nodeType === Node.TEXT_NODE) {
-              runs.push({ text: child.nodeValue, bold: isBold, underline: isUnderline, size, align });
-            } else {
-              walk(child);
-            }
-          });
-          // paragraph break
-          runs.push({ breakParagraph: true, align, size });
-        } else {
-          // other inline tags
-          Array.from(n.childNodes).forEach(child => {
-            if (child.nodeType === Node.TEXT_NODE) runs.push({ text: child.nodeValue, bold: isBold, underline: isUnderline });
-            else walk(child);
-          });
-        }
-      }
-    }
-    walk(node);
-    paragraphs.push(runs);
-  });
-  return paragraphs;
+// Estimate text width for spacing. A standard 8.5" page with 1" margins has 6.5" of usable width.
+// 6.5 inches * 1440 twips/inch = 9360 twips.
+// A 12pt font character is roughly 120 twips wide on average.
+function estimateTextWidthInTwips(text, fontSize = 12) {
+  return text.length * (fontSize / 12) * 120;
 }
 
-export async function exportTestDocx({ headerHtml = '', test = null, filename = 'export.docx' }) {
+export async function exportTestDocx({ test = null, filename = 'export.docx' }) {
   // Use fixed defaults
   const fontFamily = 'Times New Roman';
   const fontSize = 24; // docx uses half-points; we'll convert later if needed
-  const spacingBetweenQuestions = 200;
   // Build all children (header paragraphs + question blocks)
   const allChildren = [];
-
-  // Header
-  if (headerHtml) {
-    const paras = parseHeaderHtml(headerHtml, { fontSize, alignment: 'center' });
-    paras.forEach(runs => {
-      const textRuns = runs.filter(r => r.text).map(r => new TextRun({ text: r.text, bold: r.bold, underline: r.underline ? {} : undefined, size: r.size || fontSize }));
-      const alignStr = runs.find(r => r.align && typeof r.align === 'string')?.align || 'center';
-      const alignment = alignStr === 'center' ? AlignmentType.CENTER : (alignStr === 'right' ? AlignmentType.RIGHT : AlignmentType.LEFT);
-      const para = new Paragraph({ children: textRuns, alignment });
-      allChildren.push(para);
-    });
-  }
 
   // Body: questions
   if (!test) throw new Error('No test provided');
   if (!Array.isArray(test.sections)) throw new Error('Test object must include a sections array');
   let qIdx = 0;
-  test.sections.forEach(section => {
-    (section.questions || []).forEach(q => {
+  test.sections.forEach((section, sectionIndex) => {
+    // Section instruction
+    if (section.instruction) {
+      allChildren.push(new Paragraph({
+        children: [new TextRun({ text: section.instruction, bold: true, size: 24 })], // 14pt font size
+      }));
+    }
+
+    (section.questions || []).forEach((q, questionIndex) => {
       qIdx += 1;
-      // Question label
-      allChildren.push(new Paragraph({ children: [
-        new TextRun({ text: `Question ${qIdx}: `, bold: true, size: fontSize }),
-        new TextRun({ text: q.text, size: fontSize })
-      ], spacing: { after: spacingBetweenQuestions } }));
 
       // Options as plain text with smart spacing
-      const opts = Array.isArray(q.options) ? q.options : [];
-      const formatted = formatQuestionForDocx(opts);
-      formatted.split('\n').forEach(line => {
-        allChildren.push(new Paragraph({ children: [new TextRun({ text: line, size: fontSize })] }));
-      });
-      // small space after each question
-      allChildren.push(new Paragraph({}));
+      const options = Array.isArray(q.options) ? q.options : [];
+      const labeledOptions = options.map((opt, i) => `${String.fromCharCode(65 + i)}. ${opt}`);
+
+      if (options.length === 4) {
+        const widths = labeledOptions.map(opt => estimateTextWidthInTwips(opt, fontSize / 2));
+        const PAGE_WIDTH_IN_TWIPS = 9360; // 6.5 inches
+        const oneColWidth = PAGE_WIDTH_IN_TWIPS / 4;
+        const twoColWidth = PAGE_WIDTH_IN_TWIPS / 2;
+
+        // Attempt 1 (4 options): 4 options on one line
+        const canFitOneLine = widths.every(w => w < oneColWidth * 0.9); // Check each option fits in its column (with 5% margin)
+
+        if (canFitOneLine) {
+          const tabStops = [
+            { type: TabStopType.LEFT, position: Math.floor(oneColWidth) },
+            { type: TabStopType.LEFT, position: Math.floor(oneColWidth * 2) },
+            { type: TabStopType.LEFT, position: Math.floor(oneColWidth * 3) },
+          ];
+          allChildren.push(new Paragraph({ children: [
+            new TextRun({ text: `Question ${qIdx}: `, bold: true, size: fontSize }),
+            new TextRun({ text: q.text, size: fontSize })
+          ]}));
+          allChildren.push(new Paragraph({
+            children: [
+              new TextRun({ text: `${labeledOptions[0]}\t${labeledOptions[1]}\t${labeledOptions[2]}\t${labeledOptions[3]}`, size: fontSize }),
+            ],
+            tabStops,
+          }));
+        // Attempt 2 (4 options): 2x2 grid
+        } else if (
+          (widths[0] < twoColWidth * 0.95 && widths[1] < twoColWidth * 0.9) &&
+          (widths[2] < twoColWidth * 0.95 && widths[3] < twoColWidth * 0.9)
+        ) {
+          const tabStops = [{ type: TabStopType.LEFT, position: Math.floor(twoColWidth) }]; // Position for the second column
+          allChildren.push(new Paragraph({ children: [
+            new TextRun({ text: `Question ${qIdx}: `, bold: true, size: fontSize }),
+            new TextRun({ text: q.text, size: fontSize })
+          ]}));
+          allChildren.push(new Paragraph({
+            children: [
+              new TextRun({ text: `${labeledOptions[0]}\t${labeledOptions[1]}`, size: fontSize }),
+            ],
+            tabStops,
+          }));
+          allChildren.push(new Paragraph({
+            children: [
+              new TextRun({ text: `${labeledOptions[2]}\t${labeledOptions[3]}`, size: fontSize }),
+            ],
+            tabStops,
+          }));
+        // Fallback (4 options): 1 option per line
+        } else {
+          allChildren.push(new Paragraph({ children: [
+            new TextRun({ text: `Question ${qIdx}: `, bold: true, size: fontSize }),
+            new TextRun({ text: q.text, size: fontSize })
+          ]}));
+          labeledOptions.forEach(line => {
+            allChildren.push(new Paragraph({ children: [new TextRun({ text: line, size: fontSize })] }));
+          });
+        }
+      } else if (options.length > 1 && options.length < 4) {
+        const widths = labeledOptions.map(opt => estimateTextWidthInTwips(opt, fontSize / 2));
+        const PAGE_WIDTH_IN_TWIPS = 9360; // 6.5 inches
+        const colWidth = PAGE_WIDTH_IN_TWIPS / options.length;
+
+        // Attempt 1 (2-3 options): All on one line
+        const canFitOneLine = widths.every(w => w < colWidth * 0.9);
+
+        if (canFitOneLine) {
+          const tabStops = Array.from({ length: options.length - 1 }, (_, i) => ({
+            type: TabStopType.LEFT,
+            position: Math.floor(colWidth * (i + 1)),
+          }));
+
+          allChildren.push(new Paragraph({ children: [new TextRun({ text: `Question ${qIdx}: `, bold: true, size: fontSize }), new TextRun({ text: q.text, size: fontSize })]}));
+          allChildren.push(new Paragraph({
+            children: [new TextRun({ text: labeledOptions.join('\t'), size: fontSize })],
+            tabStops,
+          }));
+        } else {
+          // Fallback (2-3 options): 1 option per line
+          allChildren.push(new Paragraph({ children: [new TextRun({ text: `Question ${qIdx}: `, bold: true, size: fontSize }), new TextRun({ text: q.text, size: fontSize })]}));
+          labeledOptions.forEach(line => {
+            allChildren.push(new Paragraph({ children: [new TextRun({ text: line, size: fontSize })] }));
+          });
+        }
+      } else {
+        // For other counts, one option per line
+        allChildren.push(new Paragraph({ children: [
+          new TextRun({ text: `Question ${qIdx}: `, bold: true, size: fontSize }),
+          new TextRun({ text: q.text, size: fontSize })
+        ]}));
+        labeledOptions.forEach(line => {
+          allChildren.push(new Paragraph({
+            children: [new TextRun({ text: line, size: fontSize })],
+          }));
+        });
+      }
     });
   });
 
