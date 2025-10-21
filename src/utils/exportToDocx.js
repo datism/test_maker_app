@@ -1,4 +1,4 @@
-import { Document, Packer, Paragraph, TextRun, TabStopType } from 'docx';
+import { Document, Packer, Paragraph, TextRun, TabStopType, PageBreak } from 'docx';
 
 
 import { saveAs } from 'file-saver';
@@ -10,7 +10,7 @@ function estimateTextWidthInTwips(text, fontSize = 12) {
   return text.length * (fontSize / 12) * 120;
 }
 
-export async function exportTestDocx({ test = null, filename = 'export.docx' }) {
+export async function exportTestDocx({ test = null, filename = 'export.docx', returnBlob = false }) {
   // Use fixed defaults
   const fontFamily = 'Times New Roman';
   const fontSize = 24; // docx uses half-points; we'll convert later if needed
@@ -20,12 +20,12 @@ export async function exportTestDocx({ test = null, filename = 'export.docx' }) 
   // Body: questions
   if (!test) throw new Error('No test provided');
   if (!Array.isArray(test.sections)) throw new Error('Test object must include a sections array');
-  let qIdx = 0;
+  let qIdx = 0; // This will now reset for each test, which is fine as it's per-document.
   test.sections.forEach((section, sectionIndex) => {
     // Section instruction
     if (section.instruction) {
       allChildren.push(new Paragraph({
-        children: [new TextRun({ text: section.instruction, bold: true, size: 24 })], // 14pt font size
+        children: [new TextRun({ text: section.instruction, bold: true, size: 28 })], // 14pt font size
       }));
     }
 
@@ -155,7 +155,11 @@ export async function exportTestDocx({ test = null, filename = 'export.docx' }) 
   });
 
     const blob = await Packer.toBlob(doc);
-    saveAs(blob, filename);
+    if (returnBlob) {
+      return blob;
+    } else {
+      saveAs(blob, filename);
+    }
   } catch (err) {
     console.error('Failed to generate DOCX:', err);
     throw err;

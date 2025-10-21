@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { useProjectsStore } from '../store/useProjectsStore';
 
 const makeEmptyQuestion = () => ({
@@ -16,6 +16,28 @@ export default function TestWizard() {
   const location = useLocation();
   const editingMasterTest = location.state && location.state.editingMasterTest;
   const editTestId = location.state && location.state.editTestId;
+  const testToEdit = editTestId ? selectedProject?.tests?.find(t => t.id === editTestId) : null;
+
+  const [testName, setTestName] = useState(() => {
+    if (testToEdit) return testToEdit.name;
+    if (editingMasterTest) return 'Master Test';
+    return `Test ${(selectedProject?.tests?.length || 0) + 1}`;
+  });
+  const [nameError, setNameError] = useState('');
+
+  useEffect(() => {
+    if (editingMasterTest) return;
+
+    const isDuplicate = selectedProject?.tests?.some(test =>
+      test.name === testName && test.id !== editTestId
+    );
+
+    if (isDuplicate) {
+      setNameError('A test with this name already exists.');
+    } else {
+      setNameError('');
+    }
+  }, [testName, selectedProject, editTestId, editingMasterTest]);
 
   let sections = [];
   if (editingMasterTest) {
@@ -132,7 +154,7 @@ export default function TestWizard() {
         ...selectedProject,
         masterTest: {
           ...selectedProject.masterTest,
-          sections: cleaned,
+          sections: cleaned.map(({ sectionId, sectionName, questions }) => ({ sectionId, sectionName, questions })),
           questionCount: cleaned.reduce((sum, s) => sum + s.questions.length, 0)
         }
       };
@@ -147,7 +169,7 @@ export default function TestWizard() {
         tests: selectedProject.tests.map(t =>
           t.id === editTestId
             ? {
-                ...t,
+                ...t, name: testName,
                 sections: cleaned,
                 questionCount: cleaned.reduce((sum, s) => sum + s.questions.length, 0)
               }
@@ -165,7 +187,7 @@ export default function TestWizard() {
         ...(selectedProject.tests || []),
         {
           id: Date.now(),
-          name: `Test ${(selectedProject.tests?.length || 0) + 1}`,
+          name: testName,
           createdDate: new Date().toISOString().split('T')[0],
           sections: cleaned,
           questionCount: cleaned.reduce((sum, s) => sum + s.questions.length, 0)
@@ -183,7 +205,21 @@ export default function TestWizard() {
   return (
     <div className="max-w-3xl mx-auto">
       <div className="bg-white rounded-lg shadow-lg p-10">
-        <h2 className="text-2xl font-bold mb-6">Add Questions to Sections</h2>
+        <h2 className="text-2xl font-bold mb-6">{editTestId ? 'Edit Test' : (editingMasterTest ? 'Edit Master Test' : 'Create New Test')}</h2>
+        {!editingMasterTest && (
+          <div className="mb-6">
+            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="testName">
+              Test Name
+            </label>
+            <input
+              id="testName"
+              type="text"
+              value={testName}
+              onChange={e => setTestName(e.target.value)}
+              className={`w-full px-3 py-2 border rounded ${nameError ? 'border-red-500' : 'border-gray-300'}`}
+            />
+            {nameError && <p className="text-red-500 text-xs italic mt-1">{nameError}</p>}
+          </div>)}
         {sectionQuestions.map((section) => (
           <div key={section.sectionId} className="mb-8 border-b pb-6">
             <h3 className="text-lg font-semibold mb-4">Section: {section.sectionName}</h3>
@@ -272,6 +308,7 @@ export default function TestWizard() {
           </button>
           <button
             onClick={handleSave}
+            disabled={!!nameError || (!editingMasterTest && !testName.trim())}
             className="px-8 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
           >
             Save Test
