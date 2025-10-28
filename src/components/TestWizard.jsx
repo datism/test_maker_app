@@ -5,9 +5,25 @@ import { useProjectsStore } from '../store/useProjectsStore';
 
 const makeEmptyQuestion = () => ({
   id: Date.now() + Math.floor(Math.random() * 10000),
+  type: 'mcq',
   text: '',
   options: ['', ''],
   correctAnswer: 0
+});
+
+const makeEmptyReadingQuestion = () => ({
+  id: Date.now() + Math.floor(Math.random() * 10000),
+  type: 'reading',
+  title: '',
+  passage: '',
+  questions: [
+    {
+      id: Date.now() + Math.floor(Math.random() * 10000) + 1,
+      text: '',
+      options: ['', ''],
+      correctAnswer: 0
+    }
+  ]
 });
 
 export default function TestWizard() {
@@ -24,6 +40,8 @@ export default function TestWizard() {
     return `Test ${(selectedProject?.tests?.length || 0) + 1}`;
   });
   const [nameError, setNameError] = useState('');
+  const [openDropdown, setOpenDropdown] = useState(null);
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     if (editingMasterTest) return;
@@ -59,7 +77,44 @@ export default function TestWizard() {
       : []
   );
 
-  const handleAddQuestion = (sectionId) => {
+  useEffect(() => {
+    const newErrors = {};
+    sectionQuestions.forEach(section => {
+      section.questions.forEach(q => {
+        if (q.type === 'mcq') {
+          if (!q.text.trim()) {
+            newErrors[q.id] = { ...newErrors[q.id], text: 'Question text cannot be empty.' };
+          }
+          if (q.options.length === 0) {
+            newErrors[q.id] = { ...newErrors[q.id], options: 'At least one option is required.' };
+          } else if (q.options.some(opt => !opt.trim())) {
+            newErrors[q.id] = { ...newErrors[q.id], options: 'All options must have text.' };
+          }
+        } else if (q.type === 'reading') {
+          if (!q.passage.trim()) {
+            newErrors[q.id] = { ...newErrors[q.id], passage: 'Passage cannot be empty.' };
+          }
+          if (q.questions.length === 0) {
+            newErrors[q.id] = { ...newErrors[q.id], questions: 'At least one question is required for a reading passage.' };
+          } else {
+            q.questions.forEach(subQ => {
+              if (!subQ.text.trim()) {
+                newErrors[subQ.id] = { ...newErrors[subQ.id], text: 'Question text cannot be empty.' };
+              }
+              if (subQ.options.length === 0) {
+                newErrors[subQ.id] = { ...newErrors[subQ.id], options: 'At least one option is required.' };
+              } else if (subQ.options.some(opt => !opt.trim())) {
+                newErrors[subQ.id] = { ...newErrors[subQ.id], options: 'All options must have text.' };
+              }
+            });
+          }
+        }
+      });
+    });
+    setErrors(newErrors);
+  }, [sectionQuestions]);
+
+  const handleAddMcqQuestion = (sectionId) => {
     setSectionQuestions(sectionQuestions.map(sq =>
       sq.sectionId === sectionId
         ? { ...sq, questions: [...sq.questions, makeEmptyQuestion()] }
@@ -67,21 +122,75 @@ export default function TestWizard() {
     ));
   };
 
-  const handleQuestionFieldChange = (sectionId, qIdx, field, value) => {
+  const handleAddReadingQuestion = (sectionId) => {
+    setSectionQuestions(sectionQuestions.map(sq =>
+      sq.sectionId === sectionId
+        ? { ...sq, questions: [...sq.questions, makeEmptyReadingQuestion()] }
+        : sq
+    ));
+  };
+
+  const handleAddSubQuestion = (sectionId, qIdx) => {
     setSectionQuestions(sectionQuestions.map(sq => {
       if (sq.sectionId !== sectionId) return sq;
-      const questions = sq.questions.map((q, i) =>
-        i === qIdx ? { ...q, [field]: value } : q
-      );
+
+      const questions = sq.questions.map((q, i) => {
+        if (i !== qIdx) return q;
+
+        return {
+          ...q,
+          questions: [
+            ...q.questions,
+            {
+              id: Date.now() + Math.floor(Math.random() * 10000) + 1,
+              text: '',
+              options: ['', ''],
+              correctAnswer: 0
+            }
+          ]
+        };
+      });
+
       return { ...sq, questions };
     }));
   };
 
-  const handleOptionChange = (sectionId, qIdx, optIdx, value) => {
+  const handleQuestionFieldChange = (sectionId, qIdx, field, value, subQIdx) => {
+    setSectionQuestions(sectionQuestions.map(sq => {
+      if (sq.sectionId !== sectionId) return sq;
+
+      const questions = sq.questions.map((q, i) => {
+        if (i !== qIdx) return q;
+
+        if (q.type === 'reading' && subQIdx !== undefined) {
+          const updatedSubQuestions = q.questions.map((subQ, j) =>
+            j === subQIdx ? { ...subQ, [field]: value } : subQ
+          );
+          return { ...q, questions: updatedSubQuestions };
+        }
+
+        return { ...q, [field]: value };
+      });
+
+      return { ...sq, questions };
+    }));
+  };
+
+  const handleOptionChange = (sectionId, qIdx, optIdx, value, subQIdx) => {
     setSectionQuestions(sectionQuestions.map(sq => {
       if (sq.sectionId !== sectionId) return sq;
       const questions = sq.questions.map((q, i) => {
         if (i !== qIdx) return q;
+
+        if (q.type === 'reading' && subQIdx !== undefined) {
+          const updatedSubQuestions = q.questions.map((subQ, j) => {
+            if (j !== subQIdx) return subQ;
+            const options = subQ.options.map((o, oi) => oi === optIdx ? value : o);
+            return { ...subQ, options };
+          });
+          return { ...q, questions: updatedSubQuestions };
+        }
+
         const options = q.options.map((o, oi) => oi === optIdx ? value : o);
         return { ...q, options };
       });
@@ -89,26 +198,51 @@ export default function TestWizard() {
     }));
   };
 
-  const handleAddOption = (sectionId, qIdx) => {
+  const handleAddOption = (sectionId, qIdx, subQIdx) => {
     setSectionQuestions(sectionQuestions.map(sq => {
       if (sq.sectionId !== sectionId) return sq;
       const questions = sq.questions.map((q, i) => {
         if (i !== qIdx) return q;
+
+        if (q.type === 'reading' && subQIdx !== undefined) {
+          const updatedSubQuestions = q.questions.map((subQ, j) => {
+            if (j !== subQIdx) return subQ;
+            return { ...subQ, options: [...subQ.options, ''] };
+          });
+          return { ...q, questions: updatedSubQuestions };
+        }
+
         return { ...q, options: [...q.options, ''] };
       });
       return { ...sq, questions };
     }));
   };
 
-  const handleRemoveOption = (sectionId, qIdx, optIdx) => {
+  const handleRemoveOption = (sectionId, qIdx, optIdx, subQIdx) => {
     setSectionQuestions(sectionQuestions.map(sq => {
       if (sq.sectionId !== sectionId) return sq;
       const questions = sq.questions.map((q, i) => {
         if (i !== qIdx) return q;
+
+        if (q.type === 'reading' && subQIdx !== undefined) {
+          const updatedSubQuestions = q.questions.map((subQ, j) => {
+            if (j !== subQIdx) return subQ;
+            const options = subQ.options.filter((_, oi) => oi !== optIdx);
+            let correctAnswer = subQ.correctAnswer;
+            if (options.length === 0) {
+              options.push('');
+              correctAnswer = 0;
+            } else if (correctAnswer >= options.length) {
+              correctAnswer = options.length - 1;
+            }
+            return { ...subQ, options, correctAnswer };
+          });
+          return { ...q, questions: updatedSubQuestions };
+        }
+
         const options = q.options.filter((_, oi) => oi !== optIdx);
         let correctAnswer = q.correctAnswer;
         if (options.length === 0) {
-          // ensure at least one option
           options.push('');
           correctAnswer = 0;
         } else if (correctAnswer >= options.length) {
@@ -120,18 +254,41 @@ export default function TestWizard() {
     }));
   };
 
-  const handleSetCorrect = (sectionId, qIdx, optIdx) => {
+  const handleSetCorrect = (sectionId, qIdx, optIdx, subQIdx) => {
     setSectionQuestions(sectionQuestions.map(sq => {
       if (sq.sectionId !== sectionId) return sq;
-      const questions = sq.questions.map((q, i) => i === qIdx ? { ...q, correctAnswer: optIdx } : q);
+      const questions = sq.questions.map((q, i) => {
+        if (i !== qIdx) return q;
+
+        if (q.type === 'reading' && subQIdx !== undefined) {
+          const updatedSubQuestions = q.questions.map((subQ, j) =>
+            j === subQIdx ? { ...subQ, correctAnswer: optIdx } : subQ
+          );
+          return { ...q, questions: updatedSubQuestions };
+        }
+
+        return { ...q, correctAnswer: optIdx };
+      });
       return { ...sq, questions };
     }));
   };
 
-  const handleRemoveQuestion = (sectionId, idx) => {
+  const handleRemoveQuestion = (sectionId, qIdx, subQIdx) => {
     setSectionQuestions(sectionQuestions.map(sq => {
       if (sq.sectionId !== sectionId) return sq;
-      const questions = sq.questions.filter((_, i) => i !== idx);
+
+      if (subQIdx !== undefined) {
+        // Removing a sub-question from a reading question
+        const questions = sq.questions.map((q, i) => {
+          if (i !== qIdx) return q;
+          const updatedSubQuestions = q.questions.filter((_, j) => j !== subQIdx);
+          return { ...q, questions: updatedSubQuestions };
+        });
+        return { ...sq, questions };
+      }
+
+      // Removing a whole question (MCQ or reading)
+      const questions = sq.questions.filter((_, i) => i !== qIdx);
       return { ...sq, questions };
     }));
   };
@@ -141,13 +298,28 @@ export default function TestWizard() {
     // Clean up questions
     const cleaned = sectionQuestions.map(sq => ({
       ...sq,
-      questions: sq.questions.map(q => ({
-        ...q,
-        text: q.text.trim(),
-        options: q.options.map(o => o.trim())
-      }))
+      questions: sq.questions.map(q => {
+        if (q.type === 'reading') {
+          return {
+            ...q,
+            title: q.title.trim(),
+            questions: q.questions.map(subQ => ({
+              ...subQ,
+              text: subQ.text.trim(),
+              options: subQ.options.map(o => o.trim())
+            }))
+          };
+        }
+        return {
+          ...q,
+          text: q.text.trim(),
+          options: q.options.map(o => o.trim())
+        };
+      })
     }));
+
     if (!selectedProject) return;
+
     if (editingMasterTest) {
       // Save to masterTest
       const updatedProject = {
@@ -162,6 +334,7 @@ export default function TestWizard() {
       navigate(`/project/${selectedProject.id}`);
       return;
     }
+
     if (editTestId) {
       // Update existing test
       const updatedProject = {
@@ -180,6 +353,7 @@ export default function TestWizard() {
       navigate(`/project/${selectedProject.id}`);
       return;
     }
+
     // Save as a new test
     const updatedProject = {
       ...selectedProject,
@@ -223,80 +397,223 @@ export default function TestWizard() {
         {sectionQuestions.map((section) => (
           <div key={section.sectionId} className="mb-8 border-b pb-6">
             <h3 className="text-lg font-semibold mb-4">Section: {section.sectionName}</h3>
-            {section.questions.map((q, idx) => (
-              <div key={q.id} className="mb-6 p-4 border rounded">
-                <div className="mb-3">
-                  <label className="block text-gray-700 text-sm mb-1">Question</label>
-                  <input
-                    type="text"
-                    value={q.text}
-                    onChange={e => handleQuestionFieldChange(section.sectionId, idx, 'text', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded"
-                    placeholder="Enter question"
-                  />
-                </div>
-                <div className="mb-3">
-                  <label className="block text-gray-700 text-sm mb-2">Options</label>
-                  <div className="space-y-2">
-                    {q.options.map((opt, oi) => (
-                      <div key={oi} className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleSetCorrect(section.sectionId, idx, oi)}
-                          className={`w-8 h-8 rounded-full border ${q.correctAnswer === oi ? 'bg-green-500 text-white' : 'bg-white text-gray-700'} flex items-center justify-center`}
-                          title="Mark as correct"
-                        >
-                          {String.fromCharCode(65 + oi)}
-                        </button>
-                        <input
-                          type="text"
-                          value={opt}
-                          onChange={e => handleOptionChange(section.sectionId, idx, oi, e.target.value)}
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded"
-                          placeholder={`Option ${String.fromCharCode(65 + oi)}`}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveOption(section.sectionId, idx, oi)}
-                          className="px-2 py-1 text-red-500 hover:text-red-700"
-                          title="Remove option"
-                        >
-                          &times;
-                        </button>
+            {section.questions.map((q, idx) => {
+              if (q.type === 'reading') {
+                return (
+                  <div key={q.id} className="mb-6 p-4 border rounded">
+                    <div className="flex justify-between items-center mb-3">
+                      <label className="block text-gray-700 text-sm mb-1">Title (Optional)</label>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveQuestion(section.sectionId, idx)}
+                        className="px-3 py-1 text-red-500 hover:text-red-700"
+                      >
+                        Remove Reading Question
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      value={q.title}
+                      onChange={e => handleQuestionFieldChange(section.sectionId, idx, 'title', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded mb-3"
+                      placeholder="Enter reading passage title"
+                    />
+                    <div className="mb-3">
+                      <label className="block text-gray-700 text-sm mb-1">Passage</label>
+                      <textarea
+                        value={q.passage}
+                        onChange={e => handleQuestionFieldChange(section.sectionId, idx, 'passage', e.target.value)}
+                        className={`w-full px-3 py-2 border rounded ${errors[q.id]?.passage ? 'border-red-500' : 'border-gray-300'}`}
+                        placeholder="Paste the reading passage here"
+                        required
+                      />
+                      {errors[q.id]?.passage && <p className="text-red-500 text-xs italic mt-1">{errors[q.id].passage}</p>}
+                    </div>
+                    {errors[q.id]?.questions && <p className="text-red-500 text-xs italic mt-1">{errors[q.id].questions}</p>}
+                    {q.questions.map((subQ, subQIdx) => (
+                      <div key={subQ.id} className="mb-6 p-4 border rounded">
+                        <div className="mb-3">
+                          <label className="block text-gray-700 text-sm mb-1">Question</label>
+                          <input
+                            type="text"
+                            value={subQ.text}
+                            onChange={e => handleQuestionFieldChange(section.sectionId, idx, 'text', e.target.value, subQIdx)}
+                            className={`w-full px-3 py-2 border rounded ${errors[subQ.id]?.text ? 'border-red-500' : 'border-gray-300'}`}
+                            placeholder="Enter question"
+                          />
+                          {errors[subQ.id]?.text && <p className="text-red-500 text-xs italic mt-1">{errors[subQ.id].text}</p>}
+                        </div>
+                        <div className="mb-3">
+                          <label className="block text-gray-700 text-sm mb-2">Options</label>
+                          {errors[subQ.id]?.options && <p className="text-red-500 text-xs italic mt-1">{errors[subQ.id].options}</p>}
+                          <div className="space-y-2">
+                            {subQ.options.map((opt, oi) => (
+                              <div key={oi} className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleSetCorrect(section.sectionId, idx, oi, subQIdx)}
+                                  className={`w-8 h-8 rounded-full border ${subQ.correctAnswer === oi ? 'bg-green-500 text-white' : 'bg-white text-gray-700'} flex items-center justify-center`}
+                                  title="Mark as correct"
+                                >
+                                  {String.fromCharCode(65 + oi)}
+                                </button>
+                                <input
+                                  type="text"
+                                  value={opt}
+                                  onChange={e => handleOptionChange(section.sectionId, idx, oi, e.target.value, subQIdx)}
+                                  className="flex-1 px-3 py-2 border border-gray-300 rounded"
+                                  placeholder={`Option ${String.fromCharCode(65 + oi)}`}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveOption(section.sectionId, idx, oi, subQIdx)}
+                                  className="px-2 py-1 text-red-500 hover:text-red-700"
+                                  title="Remove option"
+                                >
+                                  &times;
+                                </button>
+                              </div>
+                            ))}
+                            <div>
+                              <button
+                                type="button"
+                                onClick={() => handleAddOption(section.sectionId, idx, subQIdx)}
+                                className="mt-2 px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                              >
+                                + Add Option
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <div className="text-sm text-gray-600">Correct: {String.fromCharCode(65 + subQ.correctAnswer)}</div>
+                          <div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveQuestion(section.sectionId, idx, subQIdx)}
+                              className="px-3 py-1 text-red-500 hover:text-red-700"
+                            >
+                              Remove Question
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     ))}
+                    <button
+                      type="button"
+                      onClick={() => handleAddSubQuestion(section.sectionId, idx)}
+                      className="mt-2 px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200"
+                    >
+                      + Add Sub-Question
+                    </button>
+                  </div>
+                )
+              }
+
+              return (
+                <div key={q.id} className="mb-6 p-4 border rounded">
+                  <div className="mb-3">
+                    <label className="block text-gray-700 text-sm mb-1">Question</label>
+                    <input
+                      type="text"
+                      value={q.text}
+                      onChange={e => handleQuestionFieldChange(section.sectionId, idx, 'text', e.target.value)}
+                      className={`w-full px-3 py-2 border rounded ${errors[q.id]?.text ? 'border-red-500' : 'border-gray-300'}`}
+                      placeholder="Enter question"
+                    />
+                    {errors[q.id]?.text && <p className="text-red-500 text-xs italic mt-1">{errors[q.id].text}</p>}
+                  </div>
+                  <div className="mb-3">
+                    <label className="block text-gray-700 text-sm mb-2">Options</label>
+                    {errors[q.id]?.options && <p className="text-red-500 text-xs italic mt-1">{errors[q.id].options}</p>}
+                    <div className="space-y-2">
+                      {q.options.map((opt, oi) => (
+                        <div key={oi} className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleSetCorrect(section.sectionId, idx, oi)}
+                            className={`w-8 h-8 rounded-full border ${q.correctAnswer === oi ? 'bg-green-500 text-white' : 'bg-white text-gray-700'} flex items-center justify-center`}
+                            title="Mark as correct"
+                          >
+                            {String.fromCharCode(65 + oi)}
+                          </button>
+                          <input
+                            type="text"
+                            value={opt}
+                            onChange={e => handleOptionChange(section.sectionId, idx, oi, e.target.value)}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded"
+                            placeholder={`Option ${String.fromCharCode(65 + oi)}`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveOption(section.sectionId, idx, oi)}
+                            className="px-2 py-1 text-red-500 hover:text-red-700"
+                            title="Remove option"
+                          >
+                            &times;
+                          </button>
+                        </div>
+                      ))}
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => handleAddOption(section.sectionId, idx)}
+                          className="mt-2 px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                        >
+                          + Add Option
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <div className="text-sm text-gray-600">Correct: {String.fromCharCode(65 + q.correctAnswer)}</div>
                     <div>
                       <button
                         type="button"
-                        onClick={() => handleAddOption(section.sectionId, idx)}
-                        className="mt-2 px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                        onClick={() => handleRemoveQuestion(section.sectionId, idx)}
+                        className="px-3 py-1 text-red-500 hover:text-red-700"
                       >
-                        + Add Option
+                        Remove Question
                       </button>
                     </div>
                   </div>
                 </div>
-                <div className="flex justify-between items-center">
-                  <div className="text-sm text-gray-600">Correct: {String.fromCharCode(65 + q.correctAnswer)}</div>
-                  <div>
+              )
+            })}
+            <div className="relative inline-block text-left mt-2">
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setOpenDropdown(openDropdown === section.sectionId ? null : section.sectionId)}
+                  className="inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  + Add Question
+                  <svg className="-mr-1 ml-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+              {openDropdown === section.sectionId && (
+                <div className="origin-top-right absolute left-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
+                  <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
                     <button
-                      type="button"
-                      onClick={() => handleRemoveQuestion(section.sectionId, idx)}
-                      className="px-3 py-1 text-red-500 hover:text-red-700"
+                      onClick={() => { handleAddMcqQuestion(section.sectionId); setOpenDropdown(null); }}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                      role="menuitem"
                     >
-                      Remove Question
+                      MCQ
+                    </button>
+                    <button
+                      onClick={() => { handleAddReadingQuestion(section.sectionId); setOpenDropdown(null); }}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                      role="menuitem"
+                    >
+                      Reading Question
                     </button>
                   </div>
                 </div>
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={() => handleAddQuestion(section.sectionId)}
-              className="mt-2 px-4 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-            >
-              + Add Question
-            </button>
+              )}
+            </div>
           </div>
         ))}
         <div className="flex justify-between mt-8">
@@ -308,8 +625,8 @@ export default function TestWizard() {
           </button>
           <button
             onClick={handleSave}
-            disabled={!!nameError || (!editingMasterTest && !testName.trim())}
-            className="px-8 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
+            disabled={!!nameError || Object.keys(errors).length > 0 || (!editingMasterTest && !testName.trim())}
+            className="px-8 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors disabled:bg-gray-400"
           >
             Save Test
           </button>
