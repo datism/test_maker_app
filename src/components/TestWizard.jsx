@@ -1,8 +1,10 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { useProjectsStore } from '../store/useProjectsStore';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import Quill from 'quill';
+import 'quill/dist/quill.snow.css';
 
 const makeEmptyQuestion = () => ({
   id: Date.now() + Math.floor(Math.random() * 10000),
@@ -26,6 +28,57 @@ const makeEmptyReadingQuestion = () => ({
     }
   ]
 });
+
+const QuillEditor = ({ value = "", onChange, placeholder }) => {
+  const editorRef = useRef(null);
+  const quillRef = useRef(null);
+
+  useEffect(() => {
+    if (!editorRef.current || quillRef.current) return; // Check if already initialized
+
+    // Initialize Quill once
+    const quill = new Quill(editorRef.current, {
+      modules: {
+        toolbar: [
+          ["bold", "italic", "underline"],
+        ],
+      },
+      theme: "snow",
+      placeholder,
+    });
+    quillRef.current = quill;
+
+    // Set initial content
+    if (value) {
+      quill.root.innerHTML = value;
+    }
+
+    // Listen for changes
+    const handleChange = () => {
+      onChange?.(quill.root.innerHTML);
+    };
+    quill.on("text-change", handleChange);
+
+    return () => {
+      // Don't clean up quillRef in development due to StrictMode
+      quill.off("text-change", handleChange);
+    };
+  }, []); // initialize once
+
+  // Watch for external value changes
+  useEffect(() => {
+    const quill = quillRef.current;
+    if (quill && value !== quill.root.innerHTML) {
+      const selection = quill.getSelection(); // Save cursor position
+      quill.root.innerHTML = value || "";
+      if (selection) {
+        quill.setSelection(selection); // Restore cursor position
+      }
+    }
+  }, [value]);
+
+  return <div ref={editorRef} style={{ minHeight: "150px" }} />;
+};
 
 export default function TestWizard() {
   const { selectedProject, updateProject } = useProjectsStore();
@@ -314,6 +367,7 @@ export default function TestWizard() {
           return {
             ...q,
             title: q.title.trim(),
+            passage: q.passage.trim(),
             questions: q.questions.map(subQ => ({
               ...subQ,
               text: subQ.text.trim(),
@@ -459,12 +513,10 @@ export default function TestWizard() {
                             />
                             <div className="mb-3">
                               <label className="block text-gray-700 text-sm mb-1">Passage</label>
-                              <textarea
-                                value={q.passage}
-                                onChange={e => handleQuestionFieldChange(section.sectionId, idx, 'passage', e.target.value)}
-                                className={`w-full px-3 py-2 border rounded ${errors[q.id]?.passage ? 'border-red-500' : 'border-gray-300'}`}
+                              <QuillEditor
+                                value={q.passage || ''}
+                                onChange={value => handleQuestionFieldChange(section.sectionId, idx, 'passage', value)}
                                 placeholder="Paste the reading passage here"
-                                required
                               />
                               {errors[q.id]?.passage && <p className="text-red-500 text-xs italic mt-1">{errors[q.id].passage}</p>}
                             </div>

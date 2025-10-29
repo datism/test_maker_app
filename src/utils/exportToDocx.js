@@ -112,6 +112,92 @@ function formatOption(q, qIdx, fontSize) {
   return children;
 }
 
+export function parseQuillHTML(quillHTML) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(quillHTML, "text/html");
+  const paragraphs = [];
+
+  doc.body.childNodes.forEach((node) => {
+    const parsed = parseNode(node);
+    if (!parsed) return;
+    if (Array.isArray(parsed)) paragraphs.push(...parsed);
+    else paragraphs.push(parsed);
+  });
+
+  return paragraphs;
+}
+
+function parseNode(node, inherited = {}) {
+  if (node.nodeType === Node.TEXT_NODE) {
+    const text = node.textContent.replace(/\t/g, "    "); // indent tabs
+    if (!text.trim()) return null;
+    return new TextRun({ text, ...inherited });
+  }
+
+  if (node.nodeType !== Node.ELEMENT_NODE) return null;
+  const tag = node.tagName.toLowerCase();
+  const formatting = { ...inherited };
+
+  // Tag-based formatting
+  if (tag === "strong" || tag === "b") formatting.bold = true;
+  if (tag === "em" || tag === "i") formatting.italics = true;
+  if (tag === "u") formatting.underline = { color: "auto" };
+
+  switch (tag) {
+    case "p": {
+      const runs = parseChildren(node, formatting);
+      return new Paragraph({
+        children: runs.length ? runs : [new TextRun("")],
+      });
+    }
+
+    case "br":
+      return new TextRun({ text: "\n" });
+
+    case "ul":
+      return Array.from(node.children).map(
+        (li) =>
+          new Paragraph({
+            children: parseChildren(li, formatting),
+            bullet: { level: 0 },
+          })
+      );
+
+    case "ol":
+      return Array.from(node.children).map(
+        (li) =>
+          new Paragraph({
+            children: parseChildren(li, formatting),
+            numbering: { reference: "numbered-list", level: 0 },
+          })
+      );
+
+    case "a":
+      return new TextRun({
+        text: node.textContent || "",
+        style: "Hyperlink",
+        link: node.getAttribute("href") || "",
+        ...formatting,
+      });
+
+    default:
+      return parseChildren(node, formatting);
+  }
+}
+
+function parseChildren(node, inherited) {
+  const runs = [];
+  node.childNodes.forEach((child) => {
+    const parsed = parseNode(child, inherited);
+    if (!parsed) return;
+    if (Array.isArray(parsed)) runs.push(...parsed);
+    else if (parsed instanceof Paragraph && parsed.children)
+      runs.push(...parsed.children);
+    else runs.push(parsed);
+  });
+  return runs;
+}
+
 export async function exportTestDocx({ test = null, filename = 'export.docx', returnBlob = false }) {
   // Use fixed defaults
   const fontFamily = 'Times New Roman';
@@ -143,9 +229,7 @@ export async function exportTestDocx({ test = null, filename = 'export.docx', re
           }));
         }
         if (q.passage) {
-          allChildren.push(new Paragraph({
-            children: [new TextRun({ text: q.passage, size: fontSize })],
-          }));
+          allChildren.push(...parseQuillHTML(q.passage));
         }
         q.questions.forEach((subQ) => {
           qIdx += 1;

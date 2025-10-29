@@ -63,7 +63,7 @@ export default function TestPreview() {
                                     <div className="flex-1">
                                       <p className="font-semibold text-gray-900 mb-3 text-base">Question {index + 1}:</p>
                                       {q.title && <p className="font-semibold text-gray-900 mb-3 text-base">{q.title}</p>}
-                                      {q.passage && <p className="text-gray-700 mb-4 whitespace-pre-wrap">{q.passage}</p>}
+                                      {q.passage && <div className="text-gray-700 mb-4" style={{ whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: q.passage }}/>}
                                       {q.questions.map((subQ, subQIndex) => (
                                         <div key={subQ.id} className="mb-4">
                                           <p className="font-semibold text-gray-900 mb-3 text-base">Question {index + 1}.{subQIndex + 1}: {subQ.text}</p>
