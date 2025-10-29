@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useShuffleTests } from '../hooks/useShuffleTests';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Shuffle, Plus, Calendar, FileText, Clock, Trash2, Edit, Download } from 'lucide-react';
+import { ChevronLeft, Shuffle, Plus, Calendar, FileText, HelpCircle, Trash2, Edit, Download } from 'lucide-react';
 import ExportModal from './ExportModal';
 import { useProjectsStore } from '../store/useProjectsStore';
 
@@ -170,11 +170,11 @@ export default function ProjectDetail() {
                 </div>
                 <div className="flex items-center gap-2">
                   <FileText size={16} />
-                  <span>{selectedProject.testCount} Tests</span>
+                  <span>{selectedProject.tests.length} Tests</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Clock size={16} />
-                  <span>{selectedProject.totalQuestions} Questions</span>
+                  <HelpCircle size={16} />
+                  <span>{selectedProject.tests.reduce((sum, t) => sum + t.questionCount, 0)} Questions</span>
                 </div>
               </div>
             </div>

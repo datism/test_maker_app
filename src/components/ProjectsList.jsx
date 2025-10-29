@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, FolderOpen, Calendar, FileText } from 'lucide-react';
+import { Plus, FolderOpen, Calendar, FileText, HelpCircle } from 'lucide-react';
 import { useProjectsStore } from '../store/useProjectsStore';
 
 export default function ProjectsList() {
@@ -44,7 +44,7 @@ export default function ProjectsList() {
                 <div className="flex items-start justify-between mb-3">
                   <FolderOpen className="text-white" size={32} />
                   <span className="bg-white bg-opacity-20 text-white text-xs px-3 py-1 rounded-full font-medium">
-                    {project.testCount} Tests
+                    {project.tests.length} Tests
                   </span>
                 </div>
                 <h3 className="text-xl font-bold text-white mb-2">{project.name}</h3>
@@ -58,7 +58,11 @@ export default function ProjectsList() {
                   </div>
                   <div className="flex items-center text-gray-500">
                     <FileText size={16} className="mr-2" />
-                    <span>Total Questions: {project.totalQuestions}</span>
+                    <span>{project.tests.length} Tests</span>
+                  </div>
+                  <div className="flex items-center text-gray-500">
+                    <HelpCircle size={16} className="mr-2" />
+                    <span>Total Questions: {project.tests.reduce((sum, t) => sum + t.questionCount, 0)}</span>
                   </div>
                 </div>
                 <div className="mt-4 pt-4 border-t border-gray-200">
