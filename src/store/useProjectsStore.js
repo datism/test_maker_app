@@ -15,15 +15,26 @@ export const useProjectsStore = create(persist((set, get) => ({
     selectedProject: state.selectedProject && state.selectedProject.id === updatedProject.id ? updatedProject : state.selectedProject
   })),
   deleteTest: (testId) => set(state => {
-    const updatedProjects = state.projects.map(p => ({
-      ...p,
-      tests: p.tests?.filter(t => t.id !== testId) || []
-    }));
-    let updatedSelectedProject = state.selectedProject;
-    if (state.selectedProject) {
-      const project = updatedProjects.find(p => p.id === state.selectedProject.id);
-      updatedSelectedProject = project ? project : null;
-    }
+    const testToDelete = state.projects.flatMap(p => p.tests || []).find(t => t.id === testId);
+    if (!testToDelete) return state; // Test not found
+
+    const updatedProjects = state.projects.map(p => {
+      if (p.tests?.some(t => t.id === testId)) {
+        const newTests = p.tests.filter(t => t.id !== testId);
+        return {
+          ...p,
+          tests: newTests,
+          testCount: newTests.length,
+          totalQuestions: newTests.reduce((sum, t) => sum + t.questionCount, 0)
+        };
+      }
+      return p;
+    });
+
+    const updatedSelectedProject = state.selectedProject
+      ? updatedProjects.find(p => p.id === state.selectedProject.id) || null
+      : null;
+
     return {
       projects: updatedProjects,
       selectedProject: updatedSelectedProject,

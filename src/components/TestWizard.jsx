@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { useProjectsStore } from '../store/useProjectsStore';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 const makeEmptyQuestion = () => ({
   id: Date.now() + Math.floor(Math.random() * 10000),
@@ -42,6 +43,16 @@ export default function TestWizard() {
   const [nameError, setNameError] = useState('');
   const [openDropdown, setOpenDropdown] = useState(null);
   const [errors, setErrors] = useState({});
+  const [collapsedSections, setCollapsedSections] = useState({});
+  const [collapsedQuestions, setCollapsedQuestions] = useState({});
+
+  const toggleSection = (sectionId) => {
+    setCollapsedSections(prev => ({ ...prev, [sectionId]: !prev[sectionId] }));
+  };
+
+  const toggleQuestion = (questionId) => {
+    setCollapsedQuestions(prev => ({ ...prev, [questionId]: !prev[questionId] }));
+  };
 
   useEffect(() => {
     if (editingMasterTest) return;
@@ -396,227 +407,283 @@ export default function TestWizard() {
           </div>)}
         {sectionQuestions.map((section) => (
           <div key={section.sectionId} className="mb-8 border-b pb-6">
-            <h3 className="text-lg font-semibold mb-4">Section: {section.sectionName}</h3>
-            {section.questions.map((q, idx) => {
-              if (q.type === 'reading') {
-                return (
-                  <div key={q.id} className="mb-6 p-4 border rounded">
-                    <div className="flex justify-between items-center mb-3">
-                      <label className="block text-gray-700 text-sm mb-1">Title (Optional)</label>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveQuestion(section.sectionId, idx)}
-                        className="px-3 py-1 text-red-500 hover:text-red-700"
-                      >
-                        Remove Reading Question
-                      </button>
-                    </div>
-                    <input
-                      type="text"
-                      value={q.title}
-                      onChange={e => handleQuestionFieldChange(section.sectionId, idx, 'title', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded mb-3"
-                      placeholder="Enter reading passage title"
-                    />
-                    <div className="mb-3">
-                      <label className="block text-gray-700 text-sm mb-1">Passage</label>
-                      <textarea
-                        value={q.passage}
-                        onChange={e => handleQuestionFieldChange(section.sectionId, idx, 'passage', e.target.value)}
-                        className={`w-full px-3 py-2 border rounded ${errors[q.id]?.passage ? 'border-red-500' : 'border-gray-300'}`}
-                        placeholder="Paste the reading passage here"
-                        required
-                      />
-                      {errors[q.id]?.passage && <p className="text-red-500 text-xs italic mt-1">{errors[q.id].passage}</p>}
-                    </div>
-                    {errors[q.id]?.questions && <p className="text-red-500 text-xs italic mt-1">{errors[q.id].questions}</p>}
-                    {q.questions.map((subQ, subQIdx) => (
-                      <div key={subQ.id} className="mb-6 p-4 border rounded">
-                        <div className="mb-3">
-                          <label className="block text-gray-700 text-sm mb-1">Question</label>
-                          <input
-                            type="text"
-                            value={subQ.text}
-                            onChange={e => handleQuestionFieldChange(section.sectionId, idx, 'text', e.target.value, subQIdx)}
-                            className={`w-full px-3 py-2 border rounded ${errors[subQ.id]?.text ? 'border-red-500' : 'border-gray-300'}`}
-                            placeholder="Enter question"
-                          />
-                          {errors[subQ.id]?.text && <p className="text-red-500 text-xs italic mt-1">{errors[subQ.id].text}</p>}
+            <div className="flex justify-between items-center mb-4 cursor-pointer" onClick={() => toggleSection(section.sectionId)}>
+              <h3 className="text-lg font-semibold">Section: {section.sectionName}</h3>
+              <button onClick={() => toggleSection(section.sectionId)} className="text-sm text-blue-500 hover:underline">
+                {collapsedSections[section.sectionId] ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
+              </button>
+            </div>
+            {!collapsedSections[section.sectionId] && (
+              <>
+                {section.questions.map((q, idx) => {
+                  const isQuestionCollapsed = collapsedQuestions[q.id];
+
+                  const getQuestionSummary = (question) => {
+                    if (question.type === 'mcq') {
+                      return question.text || 'MCQ Question';
+                    }
+                    if (question.type === 'reading') {
+                      return question.title || question.passage.substring(0, 50) + '...' || 'Reading Question';
+                    }
+                    return 'Question';
+                  };
+
+                  if (q.type === 'reading') {
+                    return (
+                      <div key={q.id} className="mb-6 border rounded">
+                        <div
+                          className="flex justify-between items-center p-4 cursor-pointer"
+                          onClick={() => toggleQuestion(q.id)}
+                        >
+                          <h4 className="font-semibold">{getQuestionSummary(q)}</h4>
+                          {isQuestionCollapsed ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
                         </div>
-                        <div className="mb-3">
-                          <label className="block text-gray-700 text-sm mb-2">Options</label>
-                          {errors[subQ.id]?.options && <p className="text-red-500 text-xs italic mt-1">{errors[subQ.id].options}</p>}
-                          <div className="space-y-2">
-                            {subQ.options.map((opt, oi) => (
-                              <div key={oi} className="flex items-center gap-2">
+                        {!isQuestionCollapsed && (
+                          <div className="p-4 border-t">
+                            <div className="flex justify-between items-center mb-3">
+                              <label className="block text-gray-700 text-sm mb-1">Title (Optional)</label>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveQuestion(section.sectionId, idx)}
+                                className="px-3 py-1 text-red-500 hover:text-red-700"
+                              >
+                                Remove Reading Question
+                              </button>
+                            </div>
+                            <input
+                              type="text"
+                              value={q.title}
+                              onChange={e => handleQuestionFieldChange(section.sectionId, idx, 'title', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded mb-3"
+                              placeholder="Enter reading passage title"
+                            />
+                            <div className="mb-3">
+                              <label className="block text-gray-700 text-sm mb-1">Passage</label>
+                              <textarea
+                                value={q.passage}
+                                onChange={e => handleQuestionFieldChange(section.sectionId, idx, 'passage', e.target.value)}
+                                className={`w-full px-3 py-2 border rounded ${errors[q.id]?.passage ? 'border-red-500' : 'border-gray-300'}`}
+                                placeholder="Paste the reading passage here"
+                                required
+                              />
+                              {errors[q.id]?.passage && <p className="text-red-500 text-xs italic mt-1">{errors[q.id].passage}</p>}
+                            </div>
+                            {errors[q.id]?.questions && <p className="text-red-500 text-xs italic mt-1">{errors[q.id].questions}</p>}
+                            {q.questions.map((subQ, subQIdx) => {
+                              const isSubQuestionCollapsed = collapsedQuestions[subQ.id];
+                              return (
+                                <div key={subQ.id} className="mb-6 border rounded">
+                                  <div
+                                    className="flex justify-between items-center p-4 cursor-pointer"
+                                    onClick={() => toggleQuestion(subQ.id)}
+                                  >
+                                    <h5 className="font-semibold">{subQ.text || 'Sub-question'}</h5>
+                                    {isSubQuestionCollapsed ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
+                                  </div>
+                                  {!isSubQuestionCollapsed && (
+                                    <div className="p-4 border-t">
+                                      <div className="mb-3">
+                                        <label className="block text-gray-700 text-sm mb-1">Question</label>
+                                        <input
+                                          type="text"
+                                          value={subQ.text}
+                                          onChange={e => handleQuestionFieldChange(section.sectionId, idx, 'text', e.target.value, subQIdx)}
+                                          className={`w-full px-3 py-2 border rounded ${errors[subQ.id]?.text ? 'border-red-500' : 'border-gray-300'}`}
+                                          placeholder="Enter question"
+                                        />
+                                        {errors[subQ.id]?.text && <p className="text-red-500 text-xs italic mt-1">{errors[subQ.id].text}</p>}
+                                      </div>
+                                      <div className="mb-3">
+                                        <label className="block text-gray-700 text-sm mb-2">Options</label>
+                                        {errors[subQ.id]?.options && <p className="text-red-500 text-xs italic mt-1">{errors[subQ.id].options}</p>}
+                                        <div className="space-y-2">
+                                          {subQ.options.map((opt, oi) => (
+                                            <div key={oi} className="flex items-center gap-2">
+                                              <button
+                                                type="button"
+                                                onClick={() => handleSetCorrect(section.sectionId, idx, oi, subQIdx)}
+                                                className={`w-8 h-8 rounded-full border ${subQ.correctAnswer === oi ? 'bg-green-500 text-white' : 'bg-white text-gray-700'} flex items-center justify-center`}
+                                                title="Mark as correct"
+                                              >
+                                                {String.fromCharCode(65 + oi)}
+                                              </button>
+                                              <input
+                                                type="text"
+                                                value={opt}
+                                                onChange={e => handleOptionChange(section.sectionId, idx, oi, e.target.value, subQIdx)}
+                                                className="flex-1 px-3 py-2 border border-gray-300 rounded"
+                                                placeholder={`Option ${String.fromCharCode(65 + oi)}`}
+                                              />
+                                              <button
+                                                type="button"
+                                                onClick={() => handleRemoveOption(section.sectionId, idx, oi, subQIdx)}
+                                                className="px-2 py-1 text-red-500 hover:text-red-700"
+                                                title="Remove option"
+                                              >
+                                                &times;
+                                              </button>
+                                            </div>
+                                          ))}
+                                          <div>
+                                            <button
+                                              type="button"
+                                              onClick={() => handleAddOption(section.sectionId, idx, subQIdx)}
+                                              className="mt-2 px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                                            >
+                                              + Add Option
+                                            </button>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div className="flex justify-between items-center">
+                                        <div className="text-sm text-gray-600">Correct: {String.fromCharCode(65 + subQ.correctAnswer)}</div>
+                                        <div>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleRemoveQuestion(section.sectionId, idx, subQIdx)}
+                                            className="px-3 py-1 text-red-500 hover:text-red-700"
+                                          >
+                                            Remove Question
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })}
+                            <button
+                              type="button"
+                              onClick={() => handleAddSubQuestion(section.sectionId, idx)}
+                              className="mt-2 px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200"
+                            >
+                              + Add Sub-Question
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  }
+
+                  return (
+                    <div key={q.id} className="mb-6 border rounded">
+                      <div
+                        className="flex justify-between items-center p-4 cursor-pointer"
+                        onClick={() => toggleQuestion(q.id)}
+                      >
+                        <h4 className="font-semibold">{getQuestionSummary(q)}</h4>
+                        {isQuestionCollapsed ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
+                      </div>
+                      {!isQuestionCollapsed && (
+                        <div className="p-4 border-t">
+                          <div className="mb-3">
+                            <label className="block text-gray-700 text-sm mb-1">Question</label>
+                            <input
+                              type="text"
+                              value={q.text}
+                              onChange={e => handleQuestionFieldChange(section.sectionId, idx, 'text', e.target.value)}
+                              className={`w-full px-3 py-2 border rounded ${errors[q.id]?.text ? 'border-red-500' : 'border-gray-300'}`}
+                              placeholder="Enter question"
+                            />
+                            {errors[q.id]?.text && <p className="text-red-500 text-xs italic mt-1">{errors[q.id].text}</p>}
+                          </div>
+                          <div className="mb-3">
+                            <label className="block text-gray-700 text-sm mb-2">Options</label>
+                            {errors[q.id]?.options && <p className="text-red-500 text-xs italic mt-1">{errors[q.id].options}</p>}
+                            <div className="space-y-2">
+                              {q.options.map((opt, oi) => (
+                                <div key={oi} className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSetCorrect(section.sectionId, idx, oi)}
+                                    className={`w-8 h-8 rounded-full border ${q.correctAnswer === oi ? 'bg-green-500 text-white' : 'bg-white text-gray-700'} flex items-center justify-center`}
+                                    title="Mark as correct"
+                                  >
+                                    {String.fromCharCode(65 + oi)}
+                                  </button>
+                                  <input
+                                    type="text"
+                                    value={opt}
+                                    onChange={e => handleOptionChange(section.sectionId, idx, oi, e.target.value)}
+                                    className="flex-1 px-3 py-2 border border-gray-300 rounded"
+                                    placeholder={`Option ${String.fromCharCode(65 + oi)}`}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveOption(section.sectionId, idx, oi)}
+                                    className="px-2 py-1 text-red-500 hover:text-red-700"
+                                    title="Remove option"
+                                  >
+                                    &times;
+                                  </button>
+                                </div>
+                              ))}
+                              <div>
                                 <button
                                   type="button"
-                                  onClick={() => handleSetCorrect(section.sectionId, idx, oi, subQIdx)}
-                                  className={`w-8 h-8 rounded-full border ${subQ.correctAnswer === oi ? 'bg-green-500 text-white' : 'bg-white text-gray-700'} flex items-center justify-center`}
-                                  title="Mark as correct"
+                                  onClick={() => handleAddOption(section.sectionId, idx)}
+                                  className="mt-2 px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
                                 >
-                                  {String.fromCharCode(65 + oi)}
-                                </button>
-                                <input
-                                  type="text"
-                                  value={opt}
-                                  onChange={e => handleOptionChange(section.sectionId, idx, oi, e.target.value, subQIdx)}
-                                  className="flex-1 px-3 py-2 border border-gray-300 rounded"
-                                  placeholder={`Option ${String.fromCharCode(65 + oi)}`}
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveOption(section.sectionId, idx, oi, subQIdx)}
-                                  className="px-2 py-1 text-red-500 hover:text-red-700"
-                                  title="Remove option"
-                                >
-                                  &times;
+                                  + Add Option
                                 </button>
                               </div>
-                            ))}
+                            </div>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <div className="text-sm text-gray-600">Correct: {String.fromCharCode(65 + q.correctAnswer)}</div>
                             <div>
                               <button
                                 type="button"
-                                onClick={() => handleAddOption(section.sectionId, idx, subQIdx)}
-                                className="mt-2 px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                                onClick={() => handleRemoveQuestion(section.sectionId, idx)}
+                                className="px-3 py-1 text-red-500 hover:text-red-700"
                               >
-                                + Add Option
+                                Remove Question
                               </button>
                             </div>
                           </div>
                         </div>
-                        <div className="flex justify-between items-center">
-                          <div className="text-sm text-gray-600">Correct: {String.fromCharCode(65 + subQ.correctAnswer)}</div>
-                          <div>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveQuestion(section.sectionId, idx, subQIdx)}
-                              className="px-3 py-1 text-red-500 hover:text-red-700"
-                            >
-                              Remove Question
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                      )}
+                    </div>
+                  )
+                })}
+                <div className="relative inline-block text-left mt-2">
+                  <div>
                     <button
                       type="button"
-                      onClick={() => handleAddSubQuestion(section.sectionId, idx)}
-                      className="mt-2 px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200"
+                      onClick={() => setOpenDropdown(openDropdown === section.sectionId ? null : section.sectionId)}
+                      className="inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                     >
-                      + Add Sub-Question
+                      + Add Question
+                      <svg className="-mr-1 ml-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
                     </button>
                   </div>
-                )
-              }
-
-              return (
-                <div key={q.id} className="mb-6 p-4 border rounded">
-                  <div className="mb-3">
-                    <label className="block text-gray-700 text-sm mb-1">Question</label>
-                    <input
-                      type="text"
-                      value={q.text}
-                      onChange={e => handleQuestionFieldChange(section.sectionId, idx, 'text', e.target.value)}
-                      className={`w-full px-3 py-2 border rounded ${errors[q.id]?.text ? 'border-red-500' : 'border-gray-300'}`}
-                      placeholder="Enter question"
-                    />
-                    {errors[q.id]?.text && <p className="text-red-500 text-xs italic mt-1">{errors[q.id].text}</p>}
-                  </div>
-                  <div className="mb-3">
-                    <label className="block text-gray-700 text-sm mb-2">Options</label>
-                    {errors[q.id]?.options && <p className="text-red-500 text-xs italic mt-1">{errors[q.id].options}</p>}
-                    <div className="space-y-2">
-                      {q.options.map((opt, oi) => (
-                        <div key={oi} className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleSetCorrect(section.sectionId, idx, oi)}
-                            className={`w-8 h-8 rounded-full border ${q.correctAnswer === oi ? 'bg-green-500 text-white' : 'bg-white text-gray-700'} flex items-center justify-center`}
-                            title="Mark as correct"
-                          >
-                            {String.fromCharCode(65 + oi)}
-                          </button>
-                          <input
-                            type="text"
-                            value={opt}
-                            onChange={e => handleOptionChange(section.sectionId, idx, oi, e.target.value)}
-                            className="flex-1 px-3 py-2 border border-gray-300 rounded"
-                            placeholder={`Option ${String.fromCharCode(65 + oi)}`}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveOption(section.sectionId, idx, oi)}
-                            className="px-2 py-1 text-red-500 hover:text-red-700"
-                            title="Remove option"
-                          >
-                            &times;
-                          </button>
-                        </div>
-                      ))}
-                      <div>
+                  {openDropdown === section.sectionId && (
+                    <div className="origin-top-right absolute left-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
+                      <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
                         <button
-                          type="button"
-                          onClick={() => handleAddOption(section.sectionId, idx)}
-                          className="mt-2 px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                          onClick={() => { handleAddMcqQuestion(section.sectionId); setOpenDropdown(null); }}
+                          className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                          role="menuitem"
                         >
-                          + Add Option
+                          MCQ
+                        </button>
+                        <button
+                          onClick={() => { handleAddReadingQuestion(section.sectionId); setOpenDropdown(null); }}
+                          className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                          role="menuitem"
+                        >
+                          Reading Question
                         </button>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <div className="text-sm text-gray-600">Correct: {String.fromCharCode(65 + q.correctAnswer)}</div>
-                    <div>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveQuestion(section.sectionId, idx)}
-                        className="px-3 py-1 text-red-500 hover:text-red-700"
-                      >
-                        Remove Question
-                      </button>
-                    </div>
-                  </div>
+                  )}
                 </div>
-              )
-            })}
-            <div className="relative inline-block text-left mt-2">
-              <div>
-                <button
-                  type="button"
-                  onClick={() => setOpenDropdown(openDropdown === section.sectionId ? null : section.sectionId)}
-                  className="inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                >
-                  + Add Question
-                  <svg className="-mr-1 ml-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
-                </button>
-              </div>
-              {openDropdown === section.sectionId && (
-                <div className="origin-top-right absolute left-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
-                  <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
-                    <button
-                      onClick={() => { handleAddMcqQuestion(section.sectionId); setOpenDropdown(null); }}
-                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
-                      role="menuitem"
-                    >
-                      MCQ
-                    </button>
-                    <button
-                      onClick={() => { handleAddReadingQuestion(section.sectionId); setOpenDropdown(null); }}
-                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
-                      role="menuitem"
-                    >
-                      Reading Question
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+              </>
+            )}
           </div>
-        ))}
-        <div className="flex justify-between mt-8">
+        ))}        <div className="flex justify-between mt-8">
           <button
             onClick={() => navigate(-1)}
             className="px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
