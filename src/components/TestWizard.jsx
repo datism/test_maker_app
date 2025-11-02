@@ -5,6 +5,8 @@ import { useProjectsStore } from '../store/useProjectsStore';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import Quill from 'quill';
 import 'quill/dist/quill.snow.css';
+import ReadingQuestionWizard from './ReadingQuestionWizard';
+import MCQQuestionWizard from './MCQQuestionWizard';
 
 const makeEmptyQuestion = () => ({
   id: Date.now() + Math.floor(Math.random() * 10000),
@@ -87,6 +89,24 @@ export default function TestWizard() {
   const [errors, setErrors] = useState({});
   const [collapsedSections, setCollapsedSections] = useState({});
   const [collapsedQuestions, setCollapsedQuestions] = useState({});
+  const [editingQuestion, setEditingQuestion] = useState(null);
+  const [editingQuestionType, setEditingQuestionType] = useState(null);
+
+  const handleEditQuestion = (question, type) => {
+    setEditingQuestion(question);
+    setEditingQuestionType(type);
+  };
+
+  const handleSaveQuestion = (editedQuestion) => {
+    setSectionQuestions(prevSections =>
+      prevSections.map(section => ({
+        ...section,
+        questions: section.questions.map(q =>
+          q.id === editedQuestion.id ? editedQuestion : q
+        ),
+      }))
+    );
+  };
 
   const toggleSection = (sectionId) => {
     setCollapsedSections(prev => ({ ...prev, [sectionId]: !prev[sectionId] }));
@@ -482,7 +502,16 @@ export default function TestWizard() {
                           onClick={() => toggleQuestion(q.id)}
                         >
                           <h4 className="font-semibold">{getQuestionSummary(q)}</h4>
-                          {isQuestionCollapsed ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
+                          <div>
+                            <button
+                                type="button"
+                                onClick={() => handleEditQuestion(q, 'reading')}
+                                className="px-3 py-1 text-blue-500 hover:text-blue-700"
+                            >
+                                Edit
+                            </button>
+                            {isQuestionCollapsed ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
+                          </div>
                         </div>
                         {!isQuestionCollapsed && (
                           <div className="p-4 border-t">
@@ -616,7 +645,16 @@ export default function TestWizard() {
                         onClick={() => toggleQuestion(q.id)}
                       >
                         <h4 className="font-semibold">{getQuestionSummary(q)}</h4>
-                        {isQuestionCollapsed ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
+                        <div>
+                          <button
+                            type="button"
+                            onClick={() => handleEditQuestion(q, 'mcq')}
+                            className="px-3 py-1 text-blue-500 hover:text-blue-700"
+                          >
+                            Edit
+                          </button>
+                          {isQuestionCollapsed ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
+                        </div>
                       </div>
                       {!isQuestionCollapsed && (
                         <div className="p-4 border-t">
@@ -727,7 +765,22 @@ export default function TestWizard() {
               </>
             )}
           </div>
-        ))}        <div className="flex justify-between mt-8">
+        ))}
+        {editingQuestion && editingQuestionType === 'reading' && (
+            <ReadingQuestionWizard
+                question={editingQuestion}
+                onSave={handleSaveQuestion}
+                onClose={() => setEditingQuestion(null)}
+            />
+        )}
+        {editingQuestion && editingQuestionType === 'mcq' && (
+            <MCQQuestionWizard
+                question={editingQuestion}
+                onSave={handleSaveQuestion}
+                onClose={() => setEditingQuestion(null)}
+            />
+        )}
+        <div className="flex justify-between mt-8">
           <button
             onClick={() => navigate(-1)}
             className="px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
