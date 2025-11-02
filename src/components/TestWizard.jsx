@@ -34,46 +34,35 @@ const QuillEditor = ({ value = "", onChange, placeholder }) => {
   const quillRef = useRef(null);
 
   useEffect(() => {
-    if (!editorRef.current || quillRef.current) return; // Check if already initialized
+    if (quillRef.current || !editorRef.current) return;
 
-    // Initialize Quill once
     const quill = new Quill(editorRef.current, {
-      modules: {
-        toolbar: [
-          ["bold", "italic", "underline"],
-        ],
-      },
       theme: "snow",
       placeholder,
+      modules: {
+        toolbar: [["bold", "italic", "underline"]],
+      },
     });
+
     quillRef.current = quill;
 
-    // Set initial content
-    if (value) {
-      quill.root.innerHTML = value;
-    }
+    // Initialize with existing value
+    if (value) quill.root.innerHTML = value;
 
-    // Listen for changes
-    const handleChange = () => {
-      onChange?.(quill.root.innerHTML);
-    };
-    quill.on("text-change", handleChange);
+    // Handle change properly
+    quill.on("text-change", () => {
+      const plainText = quill.getText().trim();
+      const html = quill.root.innerHTML;
+      // Send empty string if only whitespace or <p><br></p>
+      onChange?.(plainText.length === 0 ? "" : html);
+    });
+  }, []);
 
-    return () => {
-      // Don't clean up quillRef in development due to StrictMode
-      quill.off("text-change", handleChange);
-    };
-  }, []); // initialize once
-
-  // Watch for external value changes
+  // Sync external changes
   useEffect(() => {
     const quill = quillRef.current;
     if (quill && value !== quill.root.innerHTML) {
-      const selection = quill.getSelection(); // Save cursor position
       quill.root.innerHTML = value || "";
-      if (selection) {
-        quill.setSelection(selection); // Restore cursor position
-      }
     }
   }, [value]);
 
@@ -220,25 +209,28 @@ export default function TestWizard() {
   };
 
   const handleQuestionFieldChange = (sectionId, qIdx, field, value, subQIdx) => {
-    setSectionQuestions(sectionQuestions.map(sq => {
-      if (sq.sectionId !== sectionId) return sq;
+    setSectionQuestions(prevSections => 
+      prevSections.map(sq => {
+        if (sq.sectionId !== sectionId) return sq;
 
-      const questions = sq.questions.map((q, i) => {
-        if (i !== qIdx) return q;
+        const questions = sq.questions.map((q, i) => {
+          if (i !== qIdx) return q;
 
-        if (q.type === 'reading' && subQIdx !== undefined) {
-          const updatedSubQuestions = q.questions.map((subQ, j) =>
-            j === subQIdx ? { ...subQ, [field]: value } : subQ
-          );
-          return { ...q, questions: updatedSubQuestions };
-        }
+          if (q.type === 'reading' && subQIdx !== undefined) {
+            const updatedSubQuestions = q.questions.map((subQ, j) =>
+              j === subQIdx ? { ...subQ, [field]: value } : subQ
+            );
+            return { ...q, questions: updatedSubQuestions };
+          }
 
-        return { ...q, [field]: value };
-      });
+          return { ...q, [field]: value };
+        });
 
-      return { ...sq, questions };
-    }));
+        return { ...sq, questions };
+      })
+    );
   };
+
 
   const handleOptionChange = (sectionId, qIdx, optIdx, value, subQIdx) => {
     setSectionQuestions(sectionQuestions.map(sq => {
