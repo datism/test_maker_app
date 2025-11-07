@@ -25,15 +25,15 @@ export default function ExportModal({ open, onClose, test }) {
           <button onClick={onClose} className="p-2 text-gray-600 hover:text-gray-900"><X /></button>
         </div>
         {(test || selectedProject?.masterTest)?.sections?.map((section, index) => (
-          <div className="mb-4" key={section.sectionId || index}>
+          <div className="mb-4" key={section.id || index}>
             <label className="block text-sm font-medium mb-1">
               Instruction for Section: {section.sectionName || `Section ${index + 1}`} (optional)
             </label>
             <textarea
-              value={instructions[section.sectionId || index] || ''}
+              value={instructions[section.id || index] || ''}
               onChange={(e) => {
                 const newInstructions = { ...instructions };
-                newInstructions[section.sectionId || index] = e.target.value;
+                newInstructions[section.id || index] = e.target.value;
                 setInstructions(newInstructions);
               }}
               className="w-full border rounded px-3 py-2"
@@ -50,7 +50,7 @@ export default function ExportModal({ open, onClose, test }) {
                   ...test,
                   sections: test.sections.map((section, index) => ({
                     ...section,
-                    instruction: instructions[section.sectionId || index] || '',
+                    instruction: instructions[section.id || index] || '',
                   })),
                 };
                 if (!Array.isArray(testWithInstructions.sections) || testWithInstructions.sections.length === 0) {
@@ -69,7 +69,7 @@ export default function ExportModal({ open, onClose, test }) {
                 for (const singleTest of allTests) {
                   const testWithInstructions = {
                     ...singleTest,
-                    sections: singleTest.sections.map(s => ({ ...s, instruction: instructions[s.sectionId] || '' })),
+                    sections: singleTest.sections.map(s => ({ ...s, instruction: instructions[s.id] || '' })),
                   };
                   if (!Array.isArray(testWithInstructions.sections) || testWithInstructions.sections.length === 0) {
                     console.warn(`Skipping test "${singleTest.name}" because it has no sections.`);

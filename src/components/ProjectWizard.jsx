@@ -6,7 +6,7 @@ import { isNonEmpty } from '../utils/validation';
 export default function ProjectWizard() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [sections, setSections] = useState([{ id: Date.now(), name: '' }]);
+  const [sections, setSections] = useState([{ id: Date.now() + Math.random(), name: '' }]);
   const { addProject } = useProjectsStore();
   const navigate = useNavigate();
 

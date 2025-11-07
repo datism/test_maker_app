@@ -1,34 +1,48 @@
-
 import React, { useState } from 'react';
+import { useProjectsStore } from '../store/useProjectsStore';
 
-export default function MCQQuestionWizard({ question, onSave, onClose }) {
-  const [editedQuestion, setEditedQuestion] = useState(question);
+export default function MCQQuestionWizard({ sectionId, onClose, question }) {
+  const [newQuestion, setNewQuestion] = useState(
+    question || {
+      id: Date.now() + Math.floor(Math.random() * 10000),
+      type: 'mcq',
+      text: '',
+      options: ['', ''],
+      correctAnswer: 0
+    }
+  );
+  const { addQuestion, updateQuestion } = useProjectsStore();
+  const isEditing = !!question;
 
   const handleSave = () => {
-    onSave(editedQuestion);
+    if (isEditing) {
+      updateQuestion(sectionId, newQuestion);
+    } else {
+      addQuestion(sectionId, newQuestion);
+    }
     onClose();
   };
 
   const handleQuestionFieldChange = (field, value) => {
-    setEditedQuestion(prevQuestion => ({ ...prevQuestion, [field]: value }));
+    setNewQuestion(prevQuestion => ({ ...prevQuestion, [field]: value }));
   };
 
   const handleOptionChange = (optIdx, value) => {
-    setEditedQuestion(prevQuestion => {
+    setNewQuestion(prevQuestion => {
         const options = prevQuestion.options.map((o, oi) => oi === optIdx ? value : o);
         return { ...prevQuestion, options };
     });
   };
 
   const handleAddOption = () => {
-    setEditedQuestion(prevQuestion => ({
+    setNewQuestion(prevQuestion => ({
         ...prevQuestion,
         options: [...prevQuestion.options, '']
     }));
   };
 
   const handleRemoveOption = (optIdx) => {
-    setEditedQuestion(prevQuestion => {
+    setNewQuestion(prevQuestion => {
         const options = prevQuestion.options.filter((_, oi) => oi !== optIdx);
         let correctAnswer = prevQuestion.correctAnswer;
         if (options.length === 0) {
@@ -42,20 +56,20 @@ export default function MCQQuestionWizard({ question, onSave, onClose }) {
   };
 
   const handleSetCorrect = (optIdx) => {
-    setEditedQuestion(prevQuestion => ({ ...prevQuestion, correctAnswer: optIdx }));
+    setNewQuestion(prevQuestion => ({ ...prevQuestion, correctAnswer: optIdx }));
   };
 
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center">
       <div className="relative mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
         <div className="mt-3 text-center">
-          <h3 className="text-lg leading-6 font-medium text-gray-900">Edit MCQ Question</h3>
+          <h3 className="text-lg leading-6 font-medium text-gray-900">{isEditing ? 'Edit MCQ Question' : 'Add MCQ Question'}</h3>
           <div className="mt-2 px-7 py-3">
             <div className="mb-3">
                 <label className="block text-gray-700 text-sm mb-1 text-left">Question</label>
                 <input
                     type="text"
-                    value={editedQuestion.text}
+                    value={newQuestion.text}
                     onChange={e => handleQuestionFieldChange('text', e.target.value)}
                     className={'w-full px-3 py-2 border rounded border-gray-300'}
                     placeholder="Enter question"
@@ -64,12 +78,12 @@ export default function MCQQuestionWizard({ question, onSave, onClose }) {
             <div className="mb-3">
                 <label className="block text-gray-700 text-sm mb-2 text-left">Options</label>
                 <div className="space-y-2">
-                {editedQuestion.options.map((opt, oi) => (
+                {newQuestion.options.map((opt, oi) => (
                     <div key={oi} className="flex items-center gap-2">
                     <button
                         type="button"
                         onClick={() => handleSetCorrect(oi)}
-                        className={`w-8 h-8 rounded-full border ${editedQuestion.correctAnswer === oi ? 'bg-green-500 text-white' : 'bg-white text-gray-700'} flex items-center justify-center`}
+                        className={`w-8 h-8 rounded-full border ${newQuestion.correctAnswer === oi ? 'bg-green-500 text-white' : 'bg-white text-gray-700'} flex items-center justify-center`}
                         title="Mark as correct"
                     >
                         {String.fromCharCode(65 + oi)}
@@ -103,7 +117,7 @@ export default function MCQQuestionWizard({ question, onSave, onClose }) {
                 </div>
             </div>
             <div className="flex justify-between items-center">
-                <div className="text-sm text-gray-600">Correct: {String.fromCharCode(65 + editedQuestion.correctAnswer)}</div>
+                <div className="text-sm text-gray-600">Correct: {String.fromCharCode(65 + newQuestion.correctAnswer)}</div>
             </div>
           </div>
           <div className="items-center px-4 py-3">

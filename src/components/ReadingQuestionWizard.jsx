@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Quill from 'quill';
 import 'quill/dist/quill.snow.css';
+import { useProjectsStore } from '../store/useProjectsStore';
 
 const QuillEditor = ({ value = "", onChange, placeholder }) => {
   const editorRef = useRef(null);
@@ -39,16 +40,37 @@ const QuillEditor = ({ value = "", onChange, placeholder }) => {
   return <div ref={editorRef} style={{ minHeight: "150px" }} />;
 };
 
-export default function ReadingQuestionWizard({ question, onSave, onClose }) {
-  const [editedQuestion, setEditedQuestion] = useState(question);
+export default function ReadingQuestionWizard({ sectionId, onClose, question }) {
+  const [newQuestion, setNewQuestion] = useState(
+    question || {
+      id: Date.now(),
+      title: '',
+      passage: '',
+      questions: [
+        {
+          id: Date.now(),
+          text: '',
+          options: ['', ''],
+          correctAnswer: 0
+        }
+      ],
+      type: 'reading'
+    }
+  );
+  const { addQuestion, updateQuestion } = useProjectsStore();
+  const isEditing = !!question;
 
   const handleSave = () => {
-    onSave(editedQuestion);
+    if (isEditing) {
+      updateQuestion(sectionId, newQuestion);
+    } else {
+      addQuestion(sectionId, newQuestion);
+    }
     onClose();
   };
 
   const handleQuestionFieldChange = (field, value, subQIdx) => {
-    setEditedQuestion(prevQuestion => {
+    setNewQuestion(prevQuestion => {
       if (subQIdx !== undefined) {
         const updatedSubQuestions = prevQuestion.questions.map((subQ, j) =>
           j === subQIdx ? { ...subQ, [field]: value } : subQ
@@ -60,7 +82,7 @@ export default function ReadingQuestionWizard({ question, onSave, onClose }) {
   };
 
   const handleOptionChange = (subQIdx, optIdx, value) => {
-    setEditedQuestion(prevQuestion => {
+    setNewQuestion(prevQuestion => {
       const updatedSubQuestions = prevQuestion.questions.map((subQ, j) => {
         if (j !== subQIdx) return subQ;
         const options = subQ.options.map((o, oi) => oi === optIdx ? value : o);
@@ -71,7 +93,7 @@ export default function ReadingQuestionWizard({ question, onSave, onClose }) {
   };
 
   const handleAddOption = (subQIdx) => {
-    setEditedQuestion(prevQuestion => {
+    setNewQuestion(prevQuestion => {
         const updatedSubQuestions = prevQuestion.questions.map((subQ, j) => {
             if (j !== subQIdx) return subQ;
             return { ...subQ, options: [...subQ.options, ''] };
@@ -81,7 +103,7 @@ export default function ReadingQuestionWizard({ question, onSave, onClose }) {
   };
 
   const handleRemoveOption = (subQIdx, optIdx) => {
-    setEditedQuestion(prevQuestion => {
+    setNewQuestion(prevQuestion => {
         const updatedSubQuestions = prevQuestion.questions.map((subQ, j) => {
             if (j !== subQIdx) return subQ;
             const options = subQ.options.filter((_, oi) => oi !== optIdx);
@@ -99,7 +121,7 @@ export default function ReadingQuestionWizard({ question, onSave, onClose }) {
   };
 
   const handleSetCorrect = (subQIdx, optIdx) => {
-    setEditedQuestion(prevQuestion => {
+    setNewQuestion(prevQuestion => {
         const updatedSubQuestions = prevQuestion.questions.map((subQ, j) =>
             j === subQIdx ? { ...subQ, correctAnswer: optIdx } : subQ
         );
@@ -108,7 +130,7 @@ export default function ReadingQuestionWizard({ question, onSave, onClose }) {
   };
 
   const handleAddSubQuestion = () => {
-    setEditedQuestion(prevQuestion => ({
+    setNewQuestion(prevQuestion => ({
         ...prevQuestion,
         questions: [
             ...prevQuestion.questions,
@@ -123,7 +145,7 @@ export default function ReadingQuestionWizard({ question, onSave, onClose }) {
   };
 
   const handleRemoveSubQuestion = (subQIdx) => {
-    setEditedQuestion(prevQuestion => ({
+    setNewQuestion(prevQuestion => ({
         ...prevQuestion,
         questions: prevQuestion.questions.filter((_, j) => j !== subQIdx)
     }));
@@ -133,13 +155,13 @@ export default function ReadingQuestionWizard({ question, onSave, onClose }) {
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center">
       <div className="relative mx-auto p-5 border w-full max-w-4xl shadow-lg rounded-md bg-white">
         <div className="mt-3 text-center">
-          <h3 className="text-lg leading-6 font-medium text-gray-900">Edit Reading Question</h3>
+          <h3 className="text-lg leading-6 font-medium text-gray-900">{isEditing ? 'Edit Reading Question' : 'Add Reading Question'}</h3>
           <div className="mt-2 px-7 py-3">
             <div className="mb-3">
                 <label className="block text-gray-700 text-sm mb-1 text-left">Title (Optional)</label>
                 <input
                     type="text"
-                    value={editedQuestion.title}
+                    value={newQuestion.title}
                     onChange={e => handleQuestionFieldChange('title', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded mb-3"
                     placeholder="Enter reading passage title"
@@ -148,13 +170,13 @@ export default function ReadingQuestionWizard({ question, onSave, onClose }) {
             <div className="mb-3">
                 <label className="block text-gray-700 text-sm mb-1 text-left">Passage</label>
                 <QuillEditor
-                    value={editedQuestion.passage || ''}
+                    value={newQuestion.passage || ''}
                     onChange={value => handleQuestionFieldChange('passage', value)}
                     placeholder="Paste the reading passage here"
                 />
             </div>
 
-            {editedQuestion.questions.map((subQ, subQIdx) => (
+            {newQuestion.questions.map((subQ, subQIdx) => (
               <div key={subQ.id} className="mb-6 border rounded p-4 border-t">
                 <div className="mb-3">
                     <label className="block text-gray-700 text-sm mb-1 text-left">Question</label>

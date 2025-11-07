@@ -6,7 +6,7 @@ import ExportModal from './ExportModal';
 import { useProjectsStore } from '../store/useProjectsStore';
 
 export default function ProjectDetail() {
-  const { selectedProject, selectTest, updateProject, deleteTest } = useProjectsStore();
+  const { selectedProject, selectTest, updateProject, deleteTest, addTest } = useProjectsStore();
   const navigate = useNavigate();
   const [showShuffleModal, setShowShuffleModal] = useState(false);
   const { validateShuffle, generateTests } = useShuffleTests();
@@ -32,7 +32,19 @@ export default function ProjectDetail() {
   if (!selectedProject) return <div className="p-6 text-gray-500">No project selected.</div>;
 
   const handleBack = () => navigate('/');
-  const handleAddTest = () => navigate('/test-wizard');
+  const handleAddTest = () => {
+    const newTest = {
+      id: Date.now() + Math.random(),
+      name: `New Test ${selectedProject.tests.length + 1}`,
+      createdDate: new Date().toISOString(),
+      sections: selectedProject.sections.map(s => ({
+        ...s,
+        questions: []  
+      })),
+      questionCount: 0,
+    };
+    addTest(selectedProject.id, newTest);
+  };
   const handleTestClick = (test) => {
     selectTest(test);
     navigate(`/project/${selectedProject.id}/test/${test.id}`);
@@ -85,7 +97,7 @@ export default function ProjectDetail() {
                 />
               </div>
               {selectedProject.masterTest.sections.map((section, idx) => (
-                <div className="mb-3" key={section.sectionId}>
+                <div className="mb-3" key={section.id}>
                   <label className="block font-medium mb-1">
                     Section {idx + 1}: {section.sectionName} (max {section.questions.length} questions)
                   </label>
@@ -223,7 +235,7 @@ export default function ProjectDetail() {
                       {test.sections ? (
                         <div className="text-xs text-gray-500 mb-1">
                           {test.sections.map((section, sidx) => (
-                            <div key={section.sectionId}>
+                            <div key={section.id}>
                               <span className="font-semibold">Section: {section.sectionName}</span> ({section.questions.length} questions)
                             </div>
                           ))}

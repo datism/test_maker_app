@@ -4,7 +4,6 @@ import ProjectsList from './components/ProjectsList';
 import ProjectDetail from './components/ProjectDetail';
 import TestPreview from './components/TestPreview';
 import ProjectWizard from './components/ProjectWizard';
-import TestWizard from './components/TestWizard';
 
 export default function App() {
   return (
@@ -15,7 +14,6 @@ export default function App() {
           <Route path="/project/:id" element={<ProjectDetail />} />
           <Route path="/project/:id/test/:testId" element={<TestPreview />} />
           <Route path="/new-project" element={<ProjectWizard />} />
-          <Route path="/test-wizard" element={<TestWizard />} />
         </Route>
       </Routes>
     </BrowserRouter>

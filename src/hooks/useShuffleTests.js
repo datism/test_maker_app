@@ -2,7 +2,7 @@
 // Uses Zustand store for state
 /**
  * @typedef {Object} Section
- * @property {string|number} sectionId
+ * @property {string|number} id
  * @property {string} sectionName
  * @property {Array<Question>} questions
  *
@@ -98,7 +98,7 @@ export function useShuffleTests() {
     const newTests = [];
     for (let t = 0; t < maxTests; t++) {
       const sections = masterSections.map((section, sIdx) => ({
-        sectionId: section.sectionId,
+        id: section.id,
         sectionName: section.sectionName,
         questions: [...allSectionPerms[sIdx][t]] // unique permutation per test
       }));
