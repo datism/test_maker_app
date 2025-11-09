@@ -10,7 +10,7 @@ function estimateTextWidthInTwips(text, fontSize = 12) {
   return text.length * (fontSize / 12) * 120;
 }
 
-function formatOption(q, qIdx, fontSize) {
+function formatOption(q, fontSize) {
   const options = Array.isArray(q.options) ? q.options : [];
   const labeledOptions = options.map((opt, i) => `${String.fromCharCode(65 + i)}. ${opt}`);
   const children = [];
@@ -30,10 +30,6 @@ function formatOption(q, qIdx, fontSize) {
         { type: TabStopType.LEFT, position: Math.floor(oneColWidth * 2) },
         { type: TabStopType.LEFT, position: Math.floor(oneColWidth * 3) },
       ];
-      children.push(new Paragraph({ children: [
-        new TextRun({ text: `Question ${qIdx}: `, bold: true, size: fontSize }),
-        new TextRun({ text: q.text, size: fontSize })
-      ]}));
       children.push(new Paragraph({
         children: [
           new TextRun({ text: `${labeledOptions[0]}\t${labeledOptions[1]}\t${labeledOptions[2]}\t${labeledOptions[3]}`, size: fontSize }),
@@ -45,10 +41,6 @@ function formatOption(q, qIdx, fontSize) {
         (widths[0] < twoColWidth * 0.95 && widths[1] < twoColWidth * 0.9) &&
         (widths[2] < twoColWidth * 0.95 && widths[3] < twoColWidth * 0.9)) {
       const tabStops = [{ type: TabStopType.LEFT, position: Math.floor(twoColWidth) }]; // Position for the second column
-      children.push(new Paragraph({ children: [
-        new TextRun({ text: `Question ${qIdx}: `, bold: true, size: fontSize }),
-        new TextRun({ text: q.text, size: fontSize })
-      ]}));
       children.push(new Paragraph({
         children: [
           new TextRun({ text: `${labeledOptions[0]}\t${labeledOptions[1]}`, size: fontSize }),
@@ -63,10 +55,6 @@ function formatOption(q, qIdx, fontSize) {
       }));
       // Fallback (4 options): 1 option per line
     } else {
-      children.push(new Paragraph({ children: [
-        new TextRun({ text: `Question ${qIdx}: `, bold: true, size: fontSize }),
-        new TextRun({ text: q.text, size: fontSize })
-      ]}));
       labeledOptions.forEach(line => {
         children.push(new Paragraph({ children: [new TextRun({ text: line, size: fontSize })] }));
       });
@@ -84,25 +72,18 @@ function formatOption(q, qIdx, fontSize) {
           type: TabStopType.LEFT,
           position: Math.floor(colWidth * (i + 1)),
         }));
-
-        children.push(new Paragraph({ children: [new TextRun({ text: `Question ${qIdx}: `, bold: true, size: fontSize }), new TextRun({ text: q.text, size: fontSize })]}));
         children.push(new Paragraph({
           children: [new TextRun({ text: labeledOptions.join('\t'), size: fontSize })],
           tabStops,
         }));
       } else {
         // Fallback (2-3 options): 1 option per line
-        children.push(new Paragraph({ children: [new TextRun({ text: `Question ${qIdx}: `, bold: true, size: fontSize }), new TextRun({ text: q.text, size: fontSize })]}));
         labeledOptions.forEach(line => {
           children.push(new Paragraph({ children: [new TextRun({ text: line, size: fontSize })] }));
         });
       }
   } else {
     // For other counts, one option per line
-    children.push(new Paragraph({ children: [
-      new TextRun({ text: `Question ${qIdx}: `, bold: true, size: fontSize }),
-      new TextRun({ text: q.text, size: fontSize })
-    ]}));
     labeledOptions.forEach(line => {
       children.push(new Paragraph({
         children: [new TextRun({ text: line, size: fontSize })],
@@ -220,7 +201,11 @@ export async function exportTestDocx({ test = null, filename = 'export.docx', re
     (section.questions || []).forEach((q) => {
       qIdx += 1;
       if (q.type === 'mcq') {
-        allChildren.push(...formatOption(q, qIdx, fontSize));
+        allChildren.push(new Paragraph({ children: [
+          new TextRun({ text: `Question ${qIdx}: `, bold: true, size: fontSize }),
+          ...parseQuillHTML(q.text)
+        ]}));
+        allChildren.push(...formatOption(q, fontSize));
       } else if (q.type === 'reading') {
         if (q.title) {
           allChildren.push(new Paragraph({
@@ -233,8 +218,24 @@ export async function exportTestDocx({ test = null, filename = 'export.docx', re
         }
         q.questions.forEach((subQ) => {
           qIdx += 1;
-          allChildren.push(...formatOption(subQ, qIdx, fontSize));
+          allChildren.push(new Paragraph({ children: [
+            new TextRun({ text: `Question ${qIdx}: `, bold: true, size: fontSize }),
+            ...parseQuillHTML(subQ.text)
+          ]}));
+          allChildren.push(...formatOption(subQ, fontSize));
         });
+      } else if (q.type === 'writing') {
+        allChildren.push(new Paragraph({ children: [
+          new TextRun({ text: `Question ${qIdx}: `, bold: true, size: fontSize }),
+          ...parseQuillHTML(q.text)
+        ]}));
+        // For writing, we won't add options
+        const minUnderscoreLength = 50;
+        const dynamicUnderscoreLength = Math.max(q.answer.length * 1.5, minUnderscoreLength);
+        const underscoreLine = '_'.repeat(Math.round(dynamicUnderscoreLength));
+        allChildren.push(new Paragraph({
+          children: [new TextRun({ text: underscoreLine, size: fontSize })],
+        }));
       }
     });
   });

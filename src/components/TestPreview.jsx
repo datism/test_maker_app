@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useProjectsStore } from '../store/useProjectsStore';
 import MCQQuestionWizard from './MCQQuestionWizard';
 import ReadingQuestionWizard from './ReadingQuestionWizard';
+import WritingQuestionWizard from './WritingQuestionWizard';
 
 export default function TestPreview() {
   const navigate = useNavigate();
@@ -61,6 +62,10 @@ export default function TestPreview() {
 
   if (wizard?.type === 'reading') {
     return <ReadingQuestionWizard onClose={() => setWizard(null)} sectionId={wizard.sectionId} question={wizard.question} />;
+  }
+
+  if (wizard?.type === 'writing') {
+    return <WritingQuestionWizard onClose={() => setWizard(null)} sectionId={wizard.sectionId} question={wizard.question} />;
   }
 
   return (
@@ -131,6 +136,43 @@ export default function TestPreview() {
                           <>
                             <div className="space-y-6">
                               {(section.questions || []).length === 0 ? <div className="text-gray-400 text-center py-4">This section is empty.</div> : (section.questions || []).map((q, index) => {
+                                if (q.type === 'writing') {
+                                  return (
+                                    <div key={q.id} className="group relative pb-6 border-b border-gray-200 last:border-0 hover:bg-gray-50 p-4 rounded-lg transition-colors">
+                                      <div className="flex gap-3">
+                                        <div className="flex-shrink-0 text-gray-400 hover:text-gray-600 cursor-move">
+                                          <GripVertical size={20} />
+                                        </div>
+                                        <div className="flex-1">
+                                          <p className="font-semibold text-gray-900 mb-3 text-base">Question {index + 1}: <span dangerouslySetInnerHTML={{ __html: q.text }} /></p>
+                                          <div className="space-y-2 ml-2">
+                                              <p className="text-green-700">{q.answer}</p>
+                                          </div>
+                                        </div>
+                                        <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button
+                                                onClick={() => openWizard('writing', section.id, q)}
+                                                className="p-1 text-gray-500 hover:text-blue-600"
+                                                title="Edit question"
+                                            >
+                                                <Edit size={18} />
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    if (window.confirm('Are you sure you want to delete this question?')) {
+                                                        deleteQuestion(section.id, q.id);
+                                                    }
+                                                }}
+                                                className="p-1 text-gray-500 hover:text-red-600"
+                                                title="Delete question"
+                                            >
+                                                <Trash2 size={18} />
+                                            </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )
+                                }
                                 if (q.type === 'reading') {
                                   return (
                                     <div key={q.id} className="group relative pb-6 border-b border-gray-200 last:border-0 hover:bg-gray-50 p-4 rounded-lg transition-colors">
@@ -251,6 +293,12 @@ export default function TestPreview() {
                                     className="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-100"
                                   >
                                     Reading Question
+                                  </button>
+                                  <button
+                                    onClick={() => openWizard('writing', section.id)}
+                                    className="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-100"
+                                  >
+                                    Writing Question
                                   </button>
                                 </div>
                               )}
