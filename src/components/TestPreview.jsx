@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ChevronLeft, Edit, GripVertical, Trash2, Plus, ChevronDown } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ChevronLeft, Edit, GripVertical, Trash2, Plus, ChevronDown, X, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useProjectsStore } from '../store/useProjectsStore';
 import MCQQuestionWizard from './MCQQuestionWizard';
@@ -7,9 +7,17 @@ import ReadingQuestionWizard from './ReadingQuestionWizard';
 
 export default function TestPreview() {
   const navigate = useNavigate();
-  const { selectedTest, deleteQuestion, updateQuestion } = useProjectsStore();
+  const { selectedTest, deleteQuestion, updateQuestion, updateTestName } = useProjectsStore();
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [wizard, setWizard] = useState(null);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [newTestName, setNewTestName] = useState('');
+
+  useEffect(() => {
+    if (selectedTest) {
+      setNewTestName(selectedTest.name);
+    }
+  }, [selectedTest]);
 
   if (!selectedTest) {
     return (
@@ -22,6 +30,22 @@ export default function TestPreview() {
     setWizard({ type, sectionId, question });
     setActiveDropdown(null);
   }
+
+  const handleNameChange = (e) => {
+    setNewTestName(e.target.value);
+  };
+
+  const handleNameSave = () => {
+    if (newTestName.trim() && newTestName.trim() !== selectedTest.name) {
+      updateTestName(selectedTest.id, newTestName.trim());
+    }
+    setIsEditingName(false);
+  };
+
+  const handleNameCancel = () => {
+    setNewTestName(selectedTest.name);
+    setIsEditingName(false);
+  };
 
   if (wizard?.type === 'mcq') {
     return <MCQQuestionWizard onClose={() => setWizard(null)} sectionId={wizard.sectionId} question={wizard.question} />;
@@ -49,15 +73,37 @@ export default function TestPreview() {
                     <ChevronLeft size={16} />
                     <span>Back</span>
                   </button>
-                  <h1 className="text-3xl font-bold text-gray-900">{selectedTest?.name || 'Untitled Test'}</h1>
+                  {isEditingName ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={newTestName}
+                        onChange={handleNameChange}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleNameSave();
+                          if (e.key === 'Escape') handleNameCancel();
+                        }}
+                        className="text-3xl font-bold text-gray-900 bg-transparent border-b-2 border-blue-500 focus:outline-none"
+                        autoFocus
+                      />
+                      <button onClick={handleNameSave} className="p-1 text-green-600 hover:text-green-700"><Check size={22} /></button>
+                      <button onClick={handleNameCancel} className="p-1 text-red-600 hover:text-red-700"><X size={22} /></button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <h1 className="text-3xl font-bold text-gray-900">{selectedTest?.name || 'Untitled Test'}</h1>
+                      {selectedTest.name !== 'Master Test' && (
+                        <button
+                          onClick={() => setIsEditingName(true)}
+                          className="p-1 text-gray-500 hover:text-blue-600"
+                          title="Edit test name"
+                        >
+                          <Edit size={18} />
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <button
-                  onClick={() => navigate('/test-wizard', { state: { editTestId: selectedTest.id } })}
-                  className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <Edit size={18} />
-                  <span className="font-medium">Edit Test</span>
-                </button>
               </div>
               <div className="mb-8">
                 <div className="flex items-center mb-6">

@@ -26,8 +26,8 @@ export default function ProjectWizard() {
         name: 'Master Test',
         createdDate: new Date().toISOString().split('T')[0],
         sections: filteredSections.map(s => ({
-          sectionId: s.id,
-          sectionName: s.name,
+          id: s.id,
+          name: s.name,
           questions: []
         })),
         questionCount: 0

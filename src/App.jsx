@@ -13,6 +13,7 @@ export default function App() {
           <Route path="/" element={<ProjectsList />} />
           <Route path="/project/:id" element={<ProjectDetail />} />
           <Route path="/project/:id/test/:testId" element={<TestPreview />} />
+          <Route path="/project/:id/master-test-preview" element={<TestPreview />} />
           <Route path="/new-project" element={<ProjectWizard />} />
         </Route>
       </Routes>

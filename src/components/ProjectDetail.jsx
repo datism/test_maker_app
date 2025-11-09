@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useShuffleTests } from '../hooks/useShuffleTests';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Shuffle, Plus, Calendar, FileText, HelpCircle, Trash2, Edit, Download } from 'lucide-react';
+import { ChevronLeft, Shuffle, Plus, Calendar, FileText, HelpCircle, Trash2, Edit, Download, Eye } from 'lucide-react';
 import ExportModal from './ExportModal';
 import { useProjectsStore } from '../store/useProjectsStore';
 
@@ -161,15 +161,16 @@ export default function ProjectDetail() {
                   : 'No questions yet'}
               </div>
             </div>
-            <button
-              onClick={() => {
-                navigate('/test-wizard', { state: { editingMasterTest: true } });
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-            >
-              <Edit size={18} />
-              <span>Edit Master Test</span>
-            </button>
+              <button
+                onClick={() => {
+                  selectTest(selectedProject.masterTest);
+                  navigate(`/project/${selectedProject.id}/master-test-preview`);
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              >
+                <Edit size={18} />
+                <span>Edit Master Test</span>
+              </button>
           </div>
           <div className="flex justify-between items-start">
             <div>
