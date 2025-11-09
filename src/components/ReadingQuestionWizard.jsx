@@ -152,7 +152,7 @@ export default function ReadingQuestionWizard({ sectionId, onClose, question }) 
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center">
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto w-full flex justify-center items-start pt-12">
       <div className="relative mx-auto p-5 border w-full max-w-4xl shadow-lg rounded-md bg-white">
         <div className="mt-3 text-center">
           <h3 className="text-lg leading-6 font-medium text-gray-900">{isEditing ? 'Edit Reading Question' : 'Add Reading Question'}</h3>
