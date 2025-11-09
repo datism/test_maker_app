@@ -144,7 +144,7 @@ export default function TestPreview() {
                                           {q.passage && <div className="text-gray-700 mb-4" style={{ whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: q.passage }} />}
                                           {q.questions.map((subQ, subQIndex) => (
                                             <div key={subQ.id} className="mb-4 relative group">
-                                              <p className="font-semibold text-gray-900 mb-3 text-base">Question {index + 1}.{subQIndex + 1}: {subQ.text}</p>
+                                              <p className="font-semibold text-gray-900 mb-3 text-base">Question {index + 1}.{subQIndex + 1}: <span dangerouslySetInnerHTML={{ __html: subQ.text }} /></p>
                                               <div className="space-y-2 ml-2">
                                                 {subQ.options && subQ.options.map((opt, idx) => (
                                                   <div key={idx} className={`flex items-center gap-2 text-gray-700 py-1 ${idx === subQ.correctAnswer ? 'text-green-600 font-medium' : ''}`}>
@@ -190,7 +190,7 @@ export default function TestPreview() {
                                         <GripVertical size={20} />
                                       </div>
                                       <div className="flex-1">
-                                        <p className="font-semibold text-gray-900 mb-3 text-base">Question {index + 1}: {q.text}</p>
+                                        <p className="font-semibold text-gray-900 mb-3 text-base">Question {index + 1}: <span dangerouslySetInnerHTML={{ __html: q.text }} /></p>
                                         <div className="space-y-2 ml-2">
                                           {q.options && q.options.map((opt, idx) => (
                                             <div key={idx} className={`flex items-center gap-2 text-gray-700 py-1 ${idx === q.correctAnswer ? 'text-green-600 font-medium' : ''}`}>

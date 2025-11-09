@@ -1,44 +1,7 @@
 
-import React, { useState, useEffect, useRef } from 'react';
-import Quill from 'quill';
-import 'quill/dist/quill.snow.css';
+import React, { useState } from 'react';
 import { useProjectsStore } from '../store/useProjectsStore';
-
-const QuillEditor = ({ value = "", onChange, placeholder }) => {
-  const editorRef = useRef(null);
-  const quillRef = useRef(null);
-
-  useEffect(() => {
-    if (quillRef.current || !editorRef.current) return;
-
-    const quill = new Quill(editorRef.current, {
-      theme: "snow",
-      placeholder,
-      modules: {
-        toolbar: [["bold", "italic", "underline"]],
-      },
-    });
-
-    quillRef.current = quill;
-
-    if (value) quill.root.innerHTML = value;
-
-    quill.on("text-change", () => {
-      const plainText = quill.getText().trim();
-      const html = quill.root.innerHTML;
-      onChange?.(plainText.length === 0 ? "" : html);
-    });
-  }, []);
-
-  useEffect(() => {
-    const quill = quillRef.current;
-    if (quill && value !== quill.root.innerHTML) {
-      quill.root.innerHTML = value || "";
-    }
-  }, [value]);
-
-  return <div ref={editorRef} style={{ minHeight: "150px" }} />;
-};
+import QuillEditor from './QuillEditor';
 
 export default function ReadingQuestionWizard({ sectionId, onClose, question }) {
   const [newQuestion, setNewQuestion] = useState(
@@ -173,6 +136,7 @@ export default function ReadingQuestionWizard({ sectionId, onClose, question }) 
                     value={newQuestion.passage || ''}
                     onChange={value => handleQuestionFieldChange('passage', value)}
                     placeholder="Paste the reading passage here"
+                    minHeight={150}
                 />
             </div>
 
@@ -180,12 +144,11 @@ export default function ReadingQuestionWizard({ sectionId, onClose, question }) 
               <div key={subQ.id} className="mb-6 border rounded p-4 border-t">
                 <div className="mb-3">
                     <label className="block text-gray-700 text-sm mb-1 text-left">Question</label>
-                    <input
-                        type="text"
+                    <QuillEditor
                         value={subQ.text}
-                        onChange={e => handleQuestionFieldChange('text', e.target.value, subQIdx)}
-                        className={'w-full px-3 py-2 border rounded border-gray-300'}
+                        onChange={value => handleQuestionFieldChange('text', value, subQIdx)}
                         placeholder="Enter question"
+                        minHeight={50}
                     />
                 </div>
                 <div className="mb-3">

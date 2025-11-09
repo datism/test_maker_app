@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useProjectsStore } from '../store/useProjectsStore';
+import QuillEditor from './QuillEditor';
 
 export default function MCQQuestionWizard({ sectionId, onClose, question }) {
   const [newQuestion, setNewQuestion] = useState(
@@ -67,12 +68,11 @@ export default function MCQQuestionWizard({ sectionId, onClose, question }) {
           <div className="mt-2 px-7 py-3">
             <div className="mb-3">
                 <label className="block text-gray-700 text-sm mb-1 text-left">Question</label>
-                <input
-                    type="text"
+                <QuillEditor
                     value={newQuestion.text}
-                    onChange={e => handleQuestionFieldChange('text', e.target.value)}
-                    className={'w-full px-3 py-2 border rounded border-gray-300'}
+                    onChange={value => handleQuestionFieldChange('text', value)}
                     placeholder="Enter question"
+                    minHeight={50}
                 />
             </div>
             <div className="mb-3">
