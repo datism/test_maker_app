@@ -182,6 +182,7 @@ export default function TestPreview() {
                                             <GripVertical size={20} />
                                           </div>
                                           <div className="flex-1">
+                                            <div className="text-gray-700 mb-4" style={{ whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: q.text }} />
                                             <div className="space-y-2 ml-2">
                                                 <p className="text-green-700">{q.answer}</p>
                                             </div>

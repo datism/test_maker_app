@@ -322,13 +322,6 @@ export async function exportTestDocx({ test = null, filename = 'export.docx', re
           new TextRun({ text: `Question ${qIdx}: `, bold: true, size: fontSize }),
           ...parseQuillHTML(q.text)
         ]}));
-        // For writing, we won't add options
-        const minUnderscoreLength = 50;
-        const dynamicUnderscoreLength = Math.max(q.answer.length * 1.5, minUnderscoreLength);
-        const underscoreLine = '_'.repeat(Math.round(dynamicUnderscoreLength));
-        allChildren.push(new Paragraph({
-          children: [new TextRun({ text: underscoreLine, size: fontSize })],
-        }));
       }
     });
   });
