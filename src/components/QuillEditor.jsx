@@ -15,6 +15,7 @@ const QuillEditor = ({ value = "", onChange, placeholder, minHeight = 50 }) => {
       modules: {
         toolbar: [["bold", "italic", "underline"]],
       },
+      formats: ["bold", "italic", "underline"],
     });
 
     quillRef.current = quill;

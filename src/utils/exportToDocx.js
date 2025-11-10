@@ -1,7 +1,14 @@
-import { Document, Packer, Paragraph, TextRun, TabStopType, AlignmentType } from 'docx';
-
+import { Document, Packer, Paragraph, TextRun, TabStopType, AlignmentType, PageOrientation } from 'docx';
 
 import { saveAs } from 'file-saver';
+
+const PAGE_WIDTH = 11906;
+const PAGE_HEIGHT = 16838;
+const MARGIN_TOP = 259;
+const MARGIN_BOTTOM = 878;
+const MARGIN_LEFT = 490;
+const MARGIN_RIGHT = 562;
+const AvailablePageWidth = (PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT) * 0.9; // 90% of usable width
 
 // Estimate text width for spacing. A standard 8.5" page with 1" margins has 6.5" of usable width.
 // 6.5 inches * 1440 twips/inch = 9360 twips.
@@ -10,87 +17,126 @@ function estimateTextWidthInTwips(text, fontSize = 12) {
   return text.length * (fontSize / 12) * 120;
 }
 
-function formatOption(q, fontSize) {
-  const options = Array.isArray(q.options) ? q.options : [];
-  const labeledOptions = options.map((opt, i) => `${String.fromCharCode(65 + i)}. ${opt}`);
-  const children = [];
-
-  if (options.length === 4) {
-    const widths = labeledOptions.map(opt => estimateTextWidthInTwips(opt, fontSize / 2));
-    const PAGE_WIDTH_IN_TWIPS = 9360; // 6.5 inches
-    const oneColWidth = PAGE_WIDTH_IN_TWIPS / 4;
-    const twoColWidth = PAGE_WIDTH_IN_TWIPS / 2;
-
-    // Attempt 1 (4 options): 4 options on one line
-    const canFitOneLine = widths.every(w => w < oneColWidth * 0.9); // Check each option fits in its column (with 5% margin)
-
-    if (canFitOneLine) {
-      const tabStops = [
-        { type: TabStopType.LEFT, position: Math.floor(oneColWidth) },
-        { type: TabStopType.LEFT, position: Math.floor(oneColWidth * 2) },
-        { type: TabStopType.LEFT, position: Math.floor(oneColWidth * 3) },
-      ];
-      children.push(new Paragraph({
-        children: [
-          new TextRun({ text: `${labeledOptions[0]}\t${labeledOptions[1]}\t${labeledOptions[2]}\t${labeledOptions[3]}`, size: fontSize }),
-        ],
-        tabStops,
-      }));
-      // Attempt 2 (4 options): 2x2 grid
-    } else if (
-        (widths[0] < twoColWidth * 0.95 && widths[1] < twoColWidth * 0.9) &&
-        (widths[2] < twoColWidth * 0.95 && widths[3] < twoColWidth * 0.9)) {
-      const tabStops = [{ type: TabStopType.LEFT, position: Math.floor(twoColWidth) }]; // Position for the second column
-      children.push(new Paragraph({
-        children: [
-          new TextRun({ text: `${labeledOptions[0]}\t${labeledOptions[1]}`, size: fontSize }),
-        ],
-        tabStops,
-      }));
-      children.push(new Paragraph({
-        children: [
-          new TextRun({ text: `${labeledOptions[2]}\t${labeledOptions[3]}`, size: fontSize }),
-        ],
-        tabStops,
-      }));
-      // Fallback (4 options): 1 option per line
-    } else {
-      labeledOptions.forEach(line => {
-        children.push(new Paragraph({ children: [new TextRun({ text: line, size: fontSize })] }));
-      });
-    }
-  } else if (options.length > 1 && options.length < 4) {
-      const widths = labeledOptions.map(opt => estimateTextWidthInTwips(opt, fontSize / 2));
-      const PAGE_WIDTH_IN_TWIPS = 9360; // 6.5 inches
-      const colWidth = PAGE_WIDTH_IN_TWIPS / options.length;
-
-      // Attempt 1 (2-3 options): All on one line
-      const canFitOneLine = widths.every(w => w < colWidth * 0.9);
-
-      if (canFitOneLine) {
-        const tabStops = Array.from({ length: options.length - 1 }, (_, i) => ({
-          type: TabStopType.LEFT,
-          position: Math.floor(colWidth * (i + 1)),
+function formatOption(q, fontSize) { 
+  const options = Array.isArray(q.options) ? q.options : []; 
+  const labeledOptions = options.map((opt, i) => ({
+    label: String.fromCharCode(65 + i),
+    text: opt
+  }));
+  const children = []; 
+ 
+  if (options.length === 4) { 
+    const widths = labeledOptions.map(opt => 
+      estimateTextWidthInTwips(`${opt.label}. ${opt.text}`, fontSize / 2)
+    ); 
+    const oneColWidth = AvailablePageWidth / 4; 
+    const twoColWidth = AvailablePageWidth / 2; 
+ 
+    // Attempt 1 (4 options): 4 options on one line 
+    const canFitOneLine = widths.every(w => w < oneColWidth);
+ 
+    if (canFitOneLine) { 
+      const tabStops = [ 
+        { type: TabStopType.LEFT, position: Math.floor(oneColWidth) }, 
+        { type: TabStopType.LEFT, position: Math.floor(oneColWidth * 2) }, 
+        { type: TabStopType.LEFT, position: Math.floor(oneColWidth * 3) }, 
+      ]; 
+      children.push(new Paragraph({ 
+        children: [ 
+          new TextRun({ text: `${labeledOptions[0].label}. `, size: fontSize, bold: true }),
+          new TextRun({ text: `${labeledOptions[0].text}\t`, size: fontSize }),
+          new TextRun({ text: `${labeledOptions[1].label}. `, size: fontSize, bold: true }),
+          new TextRun({ text: `${labeledOptions[1].text}\t`, size: fontSize }),
+          new TextRun({ text: `${labeledOptions[2].label}. `, size: fontSize, bold: true }),
+          new TextRun({ text: `${labeledOptions[2].text}\t`, size: fontSize }),
+          new TextRun({ text: `${labeledOptions[3].label}. `, size: fontSize, bold: true }),
+          new TextRun({ text: labeledOptions[3].text, size: fontSize }),
+        ], 
+        tabStops, 
+      })); 
+      // Attempt 2 (4 options): 2x2 grid 
+    } else if ( 
+        (widths[0] < twoColWidth && widths[1] < twoColWidth) && 
+        (widths[2] < twoColWidth && widths[3] < twoColWidth)) { 
+      const tabStops = [{ type: TabStopType.LEFT, position: Math.floor(twoColWidth) }];
+      children.push(new Paragraph({ 
+        children: [ 
+          new TextRun({ text: `${labeledOptions[0].label}. `, size: fontSize, bold: true }),
+          new TextRun({ text: `${labeledOptions[0].text}\t`, size: fontSize }),
+          new TextRun({ text: `${labeledOptions[1].label}. `, size: fontSize, bold: true }),
+          new TextRun({ text: labeledOptions[1].text, size: fontSize }),
+        ], 
+        tabStops, 
+      })); 
+      children.push(new Paragraph({ 
+        children: [ 
+          new TextRun({ text: `${labeledOptions[2].label}. `, size: fontSize, bold: true }),
+          new TextRun({ text: `${labeledOptions[2].text}\t`, size: fontSize }),
+          new TextRun({ text: `${labeledOptions[3].label}. `, size: fontSize, bold: true }),
+          new TextRun({ text: labeledOptions[3].text, size: fontSize }),
+        ], 
+        tabStops, 
+      })); 
+      // Fallback (4 options): 1 option per line 
+    } else { 
+      labeledOptions.forEach(opt => { 
+        children.push(new Paragraph({ 
+          children: [
+            new TextRun({ text: `${opt.label}. `, size: fontSize, bold: true }),
+            new TextRun({ text: opt.text, size: fontSize })
+          ] 
+        })); 
+      }); 
+    } 
+  } else if (options.length > 1 && options.length < 4) { 
+      const widths = labeledOptions.map(opt => 
+        estimateTextWidthInTwips(`${opt.label}. ${opt.text}`, fontSize / 2)
+      ); 
+      const colWidth = AvailablePageWidth / options.length; 
+ 
+      // Attempt 1 (2-3 options): All on one line 
+      const canFitOneLine = widths.every(w => w < colWidth); 
+ 
+      if (canFitOneLine) { 
+        const tabStops = Array.from({ length: options.length - 1 }, (_, i) => ({ 
+          type: TabStopType.LEFT, 
+          position: Math.floor(colWidth * (i + 1)), 
         }));
-        children.push(new Paragraph({
-          children: [new TextRun({ text: labeledOptions.join('\t'), size: fontSize })],
-          tabStops,
-        }));
-      } else {
-        // Fallback (2-3 options): 1 option per line
-        labeledOptions.forEach(line => {
-          children.push(new Paragraph({ children: [new TextRun({ text: line, size: fontSize })] }));
+        const textRuns = [];
+        labeledOptions.forEach((opt, i) => {
+          textRuns.push(new TextRun({ text: `${opt.label}. `, size: fontSize, bold: true }));
+          textRuns.push(new TextRun({ 
+            text: opt.text + (i < labeledOptions.length - 1 ? '\t' : ''), 
+            size: fontSize 
+          }));
         });
-      }
-  } else {
-    // For other counts, one option per line
-    labeledOptions.forEach(line => {
-      children.push(new Paragraph({
-        children: [new TextRun({ text: line, size: fontSize })],
-      }));
-    });
-  }
-  return children;
+        children.push(new Paragraph({ 
+          children: textRuns, 
+          tabStops, 
+        })); 
+      } else { 
+        // Fallback (2-3 options): 1 option per line 
+        labeledOptions.forEach(opt => { 
+          children.push(new Paragraph({ 
+            children: [
+              new TextRun({ text: `${opt.label}. `, size: fontSize, bold: true }),
+              new TextRun({ text: opt.text, size: fontSize })
+            ] 
+          })); 
+        }); 
+      } 
+  } else { 
+    // For other counts, one option per line 
+    labeledOptions.forEach(opt => { 
+      children.push(new Paragraph({ 
+        children: [
+          new TextRun({ text: `${opt.label}. `, size: fontSize, bold: true }),
+          new TextRun({ text: opt.text, size: fontSize })
+        ], 
+      })); 
+    }); 
+  } 
+  return children; 
 }
 
 export function parseQuillHTML(quillHTML) {
@@ -135,24 +181,6 @@ function parseNode(node, inherited = {}) {
     case "br":
       return new TextRun({ text: "\n" });
 
-    case "ul":
-      return Array.from(node.children).map(
-        (li) =>
-          new Paragraph({
-            children: parseChildren(li, formatting),
-            bullet: { level: 0 },
-          })
-      );
-
-    case "ol":
-      return Array.from(node.children).map(
-        (li) =>
-          new Paragraph({
-            children: parseChildren(li, formatting),
-            numbering: { reference: "numbered-list", level: 0 },
-          })
-      );
-
     case "a":
       return new TextRun({
         text: node.textContent || "",
@@ -179,6 +207,25 @@ function parseChildren(node, inherited) {
   return runs;
 }
 
+function stripOuterP(html) {
+  const trimmed = html.trim();
+
+  // Remove ONLY if wrapped by exactly one <p>
+  if (trimmed.startsWith("<p>") && trimmed.endsWith("</p>")) {
+    const inner = trimmed.slice(3, -4); // Remove <p> and </p>
+    const hasInnerP = /<p[\s>]/i.test(inner);
+    if (hasInnerP) {
+      return { html: html, hasInnerP };
+    } else {
+      return { html: inner, hasInnerP };
+    }
+
+  }
+
+  // No outer <p>
+  return { html, hasInnerP: /<p[\s>]/i.test(html) };
+}
+
 export async function exportTestDocx({ test = null, filename = 'export.docx', returnBlob = false }) {
   // Use fixed defaults
   const fontFamily = 'Times New Roman';
@@ -190,7 +237,7 @@ export async function exportTestDocx({ test = null, filename = 'export.docx', re
   if (!test) throw new Error('No test provided');
   if (!Array.isArray(test.sections)) throw new Error('Test object must include a sections array');
   let qIdx = 0; // This will now reset for each test, which is fine as it's per-document.
-  test.sections.forEach((section, sectionIndex) => {
+  test.sections.forEach((section) => {
     // Section instruction
     if (section.instruction) {
       allChildren.push(new Paragraph({
@@ -199,13 +246,24 @@ export async function exportTestDocx({ test = null, filename = 'export.docx', re
     }
 
     (section.questions || []).forEach((q) => {
-      qIdx += 1;
       if (q.type === 'mcq') {
-        allChildren.push(new Paragraph({ children: [
-          new TextRun({ text: `Question ${qIdx}: `, bold: true, size: fontSize }),
-          ...parseQuillHTML(q.text)
-        ]}));
-        allChildren.push(...formatOption(q, fontSize));
+        qIdx += 1;
+
+        let pStripeedRes = stripOuterP(q.text);
+        if (pStripeedRes.hasInnerP) {
+          allChildren.push(new Paragraph({ children: [
+            new TextRun({ text: `Question ${qIdx}: `, bold: true, size: fontSize }),
+          ]}));
+          allChildren.push(
+            ...parseQuillHTML(pStripeedRes.html)
+          );
+        } else {
+          allChildren.push(new Paragraph({ children: [
+            new TextRun({ text: `Question ${qIdx}: `, bold: true, size: fontSize }),
+            ...parseQuillHTML(pStripeedRes.html)
+          ]}));
+        }
+        allChildren.push(...formatOption(q, fontSize))
       } else if (q.type === 'reading') {
         if (q.title) {
           allChildren.push(new Paragraph({
@@ -218,13 +276,48 @@ export async function exportTestDocx({ test = null, filename = 'export.docx', re
         }
         q.questions.forEach((subQ) => {
           qIdx += 1;
+
+          let pStripeedRes = stripOuterP(subQ.text);
+          if (pStripeedRes.hasInnerP) {
+            allChildren.push(new Paragraph({ children: [
+              new TextRun({ text: `Question ${qIdx}: `, bold: true, size: fontSize }),
+            ]}));
+            allChildren.push(
+              ...parseQuillHTML(pStripeedRes.html)
+            );
+          } else {
+            allChildren.push(new Paragraph({ children: [
+              new TextRun({ text: `Question ${qIdx}: `, bold: true, size: fontSize }),
+              ...parseQuillHTML(pStripeedRes.html)
+            ]}));
+          }
+          allChildren.push(...formatOption(subQ, fontSize));
+        });
+      } else if (q.type === 'fill-in-the-blank') {
+        if (q.title) {
+          allChildren.push(new Paragraph({
+            children: [new TextRun({ text: q.title, bold: true, size: fontSize })],
+            alignment: AlignmentType.CENTER,
+          }));
+        }
+        if (q.passage) {
+          let blankCounter = qIdx + 1;
+          const passageWithBlanks = q.passage.replace(/\{blank\}/g, () => {
+            const id = `${blankCounter++}`; 
+            return `<b>(${id}) _________</b>`;
+          });
+
+          allChildren.push(...parseQuillHTML(passageWithBlanks));
+        }
+        q.questions.forEach((subQ) => {
+          qIdx += 1;
           allChildren.push(new Paragraph({ children: [
             new TextRun({ text: `Question ${qIdx}: `, bold: true, size: fontSize }),
-            ...parseQuillHTML(subQ.text)
           ]}));
           allChildren.push(...formatOption(subQ, fontSize));
         });
       } else if (q.type === 'writing') {
+        qIdx += 1;
         allChildren.push(new Paragraph({ children: [
           new TextRun({ text: `Question ${qIdx}: `, bold: true, size: fontSize }),
           ...parseQuillHTML(q.text)
@@ -255,6 +348,21 @@ export async function exportTestDocx({ test = null, filename = 'export.docx', re
     },
     sections: [
       {
+        properties: {
+                page: {
+                    size: {
+                        orientation: PageOrientation.PORTRAIT,
+                        width: PAGE_WIDTH, 
+                        height: PAGE_HEIGHT,
+                    },
+                    margin: {
+                        top: MARGIN_TOP,
+                        bottom: MARGIN_BOTTOM,
+                        left: MARGIN_LEFT,
+                        right: MARGIN_RIGHT,
+                    },
+                },
+              },
         children: allChildren
       }
     ]
