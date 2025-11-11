@@ -1,4 +1,3 @@
-// Validation helpers for TestMakerApp
 /**
  * @param {string} text
  * @returns {boolean}

@@ -1,17 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { X, Download } from 'lucide-react';
 import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 import exportTestDocx from '../utils/exportToDocx';
+import { exportToXlsx } from '../utils/exportToXlsx';
 import { useProjectsStore } from '../store/useProjectsStore';
 
 export default function ExportModal({ open, onClose, test }) {
   const { selectedProject } = useProjectsStore();
   const [instructions, setInstructions] = useState({});
+  const [exportToExcel, setExportToExcel] = useState(false);
 
   useEffect(() => {
     if (open) {
       // Reset instructions when modal opens
       setInstructions({});
+      setExportToExcel(false);
     }
   }, [open]);
 
@@ -41,6 +45,19 @@ export default function ExportModal({ open, onClose, test }) {
             />
           </div>
         ))}
+        {!test && (
+          <div className="mb-4">
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={exportToExcel}
+                onChange={(e) => setExportToExcel(e.target.checked)}
+                className="mr-2"
+              />
+              <span>Export answers to Excel</span>
+            </label>
+          </div>
+        )}
         <div className="flex justify-end gap-3">
           <button onClick={onClose} className="px-4 py-2 bg-gray-200 rounded">Cancel</button>
           <button
@@ -83,6 +100,14 @@ export default function ExportModal({ open, onClose, test }) {
                     zip.file(filename, blob);
                   }
                 }
+
+                if (exportToExcel) {
+                  const xlsxBlob = exportToXlsx(selectedProject);
+                  if (xlsxBlob) {
+                    zip.file(`${(selectedProject?.name || 'project').replace(/ /g, '_')}_answers.xlsx`, xlsxBlob);
+                  }
+                }
+
                 const zipBlob = await zip.generateAsync({ type: 'blob' });
                 saveAs(zipBlob, `${(selectedProject?.name || 'project').replace(/ /g, '_')}_all_tests.zip`);
               }
