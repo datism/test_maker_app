@@ -1,16 +1,23 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, FolderOpen, Calendar, FileText, HelpCircle } from 'lucide-react';
+import { Plus, FolderOpen, Calendar, FileText, HelpCircle, Trash2 } from 'lucide-react';
 import { useProjectsStore } from '../store/useProjectsStore';
 
 export default function ProjectsList() {
-  const { projects, selectProject } = useProjectsStore();
+  const { projects, selectProject, deleteProject } = useProjectsStore();
   const navigate = useNavigate();
 
   const handleNewProject = () => navigate('/new-project');
   const handleProjectClick = (project) => {
     selectProject(project);
     navigate(`/project/${project.id}`);
+  };
+
+  const handleDelete = (e, projectId) => {
+    e.stopPropagation();
+    if (window.confirm('Are you sure you want to delete this project?')) {
+      deleteProject(projectId);
+    }
   };
 
   if (!projects || !Array.isArray(projects)) return null;
@@ -43,9 +50,18 @@ export default function ProjectsList() {
               <div className="bg-gradient-to-r from-green-500 to-green-600 p-6">
                 <div className="flex items-start justify-between mb-3">
                   <FolderOpen className="text-white" size={32} />
-                  <span className="bg-white bg-opacity-20 text-white text-xs px-3 py-1 rounded-full font-medium">
-                    {project.tests.length} Tests
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="bg-white bg-opacity-20 text-white text-xs px-3 py-1 rounded-full font-medium">
+                      {project.tests.length} Tests
+                    </span>
+                    <button
+                      onClick={(e) => handleDelete(e, project.id)}
+                      className="text-white hover:text-red-200 transition-colors"
+                      title="Delete project"
+                    >
+                      <Trash2 size={20} />
+                    </button>
+                  </div>
                 </div>
                 <h3 className="text-xl font-bold text-white mb-2">{project.name}</h3>
               </div>

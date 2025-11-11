@@ -355,6 +355,10 @@ export const useProjectsStore = create(persist((set, get) => ({
       selectedProject: newSelectedProject
     };
   }),
+  deleteProject: (projectId) => set(state => ({
+    projects: state.projects.filter(p => p.id !== projectId),
+    selectedProject: state.selectedProject && state.selectedProject.id === projectId ? null : state.selectedProject,
+  })),
 }), {
   name: 'projects-store',
 }))
