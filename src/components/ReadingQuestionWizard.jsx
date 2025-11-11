@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { useProjectsStore } from '../store/useProjectsStore';
 import QuillEditor from './QuillEditor';
+import { validateReadingQuestion } from '../utils/validation';
 
 export default function ReadingQuestionWizard({ sectionId, onClose, question }) {
   const [newQuestion, setNewQuestion] = useState(
@@ -20,10 +21,17 @@ export default function ReadingQuestionWizard({ sectionId, onClose, question }) 
       type: 'reading'
     }
   );
+  const [errors, setErrors] = useState({});
   const { addQuestion, updateQuestion } = useProjectsStore();
   const isEditing = !!question;
 
   const handleSave = () => {
+    const validationErrors = validateReadingQuestion(newQuestion);
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
+
     if (isEditing) {
       updateQuestion(sectionId, newQuestion);
     } else {
@@ -33,6 +41,7 @@ export default function ReadingQuestionWizard({ sectionId, onClose, question }) 
   };
 
   const handleQuestionFieldChange = (field, value, subQIdx) => {
+    setErrors({});
     setNewQuestion(prevQuestion => {
       if (subQIdx !== undefined) {
         const updatedSubQuestions = prevQuestion.questions.map((subQ, j) =>
@@ -45,6 +54,7 @@ export default function ReadingQuestionWizard({ sectionId, onClose, question }) 
   };
 
   const handleOptionChange = (subQIdx, optIdx, value) => {
+    setErrors({});
     setNewQuestion(prevQuestion => {
       const updatedSubQuestions = prevQuestion.questions.map((subQ, j) => {
         if (j !== subQIdx) return subQ;
@@ -56,6 +66,7 @@ export default function ReadingQuestionWizard({ sectionId, onClose, question }) 
   };
 
   const handleAddOption = (subQIdx) => {
+    setErrors({});
     setNewQuestion(prevQuestion => {
         const updatedSubQuestions = prevQuestion.questions.map((subQ, j) => {
             if (j !== subQIdx) return subQ;
@@ -66,6 +77,7 @@ export default function ReadingQuestionWizard({ sectionId, onClose, question }) 
   };
 
   const handleRemoveOption = (subQIdx, optIdx) => {
+    setErrors({});
     setNewQuestion(prevQuestion => {
         const updatedSubQuestions = prevQuestion.questions.map((subQ, j) => {
             if (j !== subQIdx) return subQ;
@@ -84,6 +96,7 @@ export default function ReadingQuestionWizard({ sectionId, onClose, question }) 
   };
 
   const handleSetCorrect = (subQIdx, optIdx) => {
+    setErrors({});
     setNewQuestion(prevQuestion => {
         const updatedSubQuestions = prevQuestion.questions.map((subQ, j) =>
             j === subQIdx ? { ...subQ, correctAnswer: optIdx } : subQ
@@ -93,6 +106,7 @@ export default function ReadingQuestionWizard({ sectionId, onClose, question }) 
   };
 
   const handleAddSubQuestion = () => {
+    setErrors({});
     setNewQuestion(prevQuestion => ({
         ...prevQuestion,
         questions: [
@@ -108,6 +122,7 @@ export default function ReadingQuestionWizard({ sectionId, onClose, question }) 
   };
 
   const handleRemoveSubQuestion = (subQIdx) => {
+    setErrors({});
     setNewQuestion(prevQuestion => ({
         ...prevQuestion,
         questions: prevQuestion.questions.filter((_, j) => j !== subQIdx)
@@ -138,8 +153,10 @@ export default function ReadingQuestionWizard({ sectionId, onClose, question }) 
                     placeholder="Paste the reading passage here"
                     minHeight={150}
                 />
+                {errors.passage && <p className="text-red-500 text-xs italic">{errors.passage}</p>}
             </div>
 
+            {errors.questions && <p className="text-red-500 text-xs italic">{errors.questions}</p>}
             {newQuestion.questions.map((subQ, subQIdx) => (
               <div key={subQ.id} className="mb-6 border rounded p-4 border-t">
                 <div className="mb-3">
@@ -150,9 +167,11 @@ export default function ReadingQuestionWizard({ sectionId, onClose, question }) 
                         placeholder="Enter question"
                         minHeight={50}
                     />
+                    {errors.subQuestions?.[subQIdx]?.text && <p className="text-red-500 text-xs italic">{errors.subQuestions[subQIdx].text}</p>}
                 </div>
                 <div className="mb-3">
                     <label className="block text-gray-700 text-sm mb-2 text-left">Options</label>
+                    {errors.subQuestions?.[subQIdx]?.options && <p className="text-red-500 text-xs italic">{errors.subQuestions[subQIdx].options}</p>}
                     <div className="space-y-2">
                     {subQ.options.map((opt, oi) => (
                         <div key={oi} className="flex items-center gap-2">
@@ -194,6 +213,7 @@ export default function ReadingQuestionWizard({ sectionId, onClose, question }) 
                 </div>
                 <div className="flex justify-between items-center">
                     <div className="text-sm text-gray-600">Correct: {String.fromCharCode(65 + subQ.correctAnswer)}</div>
+                    {errors.subQuestions?.[subQIdx]?.correctAnswer && <p className="text-red-500 text-xs italic">{errors.subQuestions[subQIdx].correctAnswer}</p>}
                     <div>
                     <button
                         type="button"

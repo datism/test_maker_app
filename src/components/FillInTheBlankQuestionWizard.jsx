@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useProjectsStore } from '../store/useProjectsStore';
 import QuillEditor from './QuillEditor';
+import { validateFillInTheBlankQuestion } from '../utils/validation';
 
 export default function FillInTheBlankQuestionWizard({ sectionId, onClose, question }) {
   const [newQuestion, setNewQuestion] = useState(
@@ -13,12 +14,13 @@ export default function FillInTheBlankQuestionWizard({ sectionId, onClose, quest
         {
           id: Date.now(),
           options: ['', ''],
-          correctAnswer: 0
+          correctAnswer: -1
         }
       ],
       type: 'fill-in-the-blank'
     }
   );
+  const [errors, setErrors] = useState({});
   const { addQuestion, updateQuestion } = useProjectsStore();
   const isEditing = !!question;
 
@@ -36,7 +38,7 @@ export default function FillInTheBlankQuestionWizard({ sectionId, onClose, quest
             updatedQuestions.push({
               id: Date.now() + Math.floor(Math.random() * 10000) + i,
               options: ['', ''],
-              correctAnswer: 0
+              correctAnswer: -1
             });
           }
         } else if (blankCount < currentSubQuestionCount) {
@@ -50,14 +52,10 @@ export default function FillInTheBlankQuestionWizard({ sectionId, onClose, quest
 
 
   const handleSave = () => {
-    const blankCount = (newQuestion.passage.match(/{blank}/g) || []).length;
-    if (blankCount === 0) {
-      alert("Passage must contain at least one {blank} placeholder.");
-      return;
-    }
-    if (blankCount !== newQuestion.questions.length) {
-      alert("Number of blanks in the passage must match the number of sub-questions.");
-      return;
+    const validationErrors = validateFillInTheBlankQuestion(newQuestion);
+    if (Object.keys(validationErrors).length > 0) {
+        setErrors(validationErrors);
+        return;
     }
 
     if (isEditing) {
@@ -69,6 +67,7 @@ export default function FillInTheBlankQuestionWizard({ sectionId, onClose, quest
   };
 
   const handleQuestionFieldChange = (field, value, subQIdx) => {
+    setErrors({});
     setNewQuestion(prevQuestion => {
       if (subQIdx !== undefined) {
         const updatedSubQuestions = prevQuestion.questions.map((subQ, j) =>
@@ -81,6 +80,7 @@ export default function FillInTheBlankQuestionWizard({ sectionId, onClose, quest
   };
 
   const handleOptionChange = (subQIdx, optIdx, value) => {
+    setErrors({});
     setNewQuestion(prevQuestion => {
       const updatedSubQuestions = prevQuestion.questions.map((subQ, j) => {
         if (j !== subQIdx) return subQ;
@@ -92,6 +92,7 @@ export default function FillInTheBlankQuestionWizard({ sectionId, onClose, quest
   };
 
   const handleAddOption = (subQIdx) => {
+    setErrors({});
     setNewQuestion(prevQuestion => {
         const updatedSubQuestions = prevQuestion.questions.map((subQ, j) => {
             if (j !== subQIdx) return subQ;
@@ -102,6 +103,7 @@ export default function FillInTheBlankQuestionWizard({ sectionId, onClose, quest
   };
 
   const handleRemoveOption = (subQIdx, optIdx) => {
+    setErrors({});
     setNewQuestion(prevQuestion => {
         const updatedSubQuestions = prevQuestion.questions.map((subQ, j) => {
             if (j !== subQIdx) return subQ;
@@ -109,7 +111,7 @@ export default function FillInTheBlankQuestionWizard({ sectionId, onClose, quest
             let correctAnswer = subQ.correctAnswer;
             if (options.length === 0) {
                 options.push('');
-                correctAnswer = 0;
+                correctAnswer = -1;
             } else if (correctAnswer >= options.length) {
                 correctAnswer = options.length - 1;
             }
@@ -120,6 +122,7 @@ export default function FillInTheBlankQuestionWizard({ sectionId, onClose, quest
   };
 
   const handleSetCorrect = (subQIdx, optIdx) => {
+    setErrors({});
     setNewQuestion(prevQuestion => {
         const updatedSubQuestions = prevQuestion.questions.map((subQ, j) =>
             j === subQIdx ? { ...subQ, correctAnswer: optIdx } : subQ
@@ -154,8 +157,10 @@ export default function FillInTheBlankQuestionWizard({ sectionId, onClose, quest
                     placeholder="Paste the passage here, use {blank} for fill-in-the-blank spots"
                     minHeight={150}
                 />
+                {errors.passage && <p className="text-red-500 text-xs mt-1">{errors.passage}</p>}
             </div>
 
+            {errors.questions && <p className="text-red-500 text-xs mt-1 mb-3">{errors.questions}</p>}
             {newQuestion.questions.map((subQ, subQIdx) => (
               <div key={subQ.id} className="mb-6 border rounded p-4 border-t">
                 <div className="mb-3">
@@ -190,6 +195,8 @@ export default function FillInTheBlankQuestionWizard({ sectionId, onClose, quest
                         </button>
                         </div>
                     ))}
+                    {errors.subQuestions?.[subQIdx]?.options && <p className="text-red-500 text-xs mt-1">{errors.subQuestions[subQIdx].options}</p>}
+                    {errors.subQuestions?.[subQIdx]?.correctAnswer && <p className="text-red-500 text-xs mt-1">{errors.subQuestions[subQIdx].correctAnswer}</p>}
                     <div>
                         <button
                         type="button"

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useProjectsStore } from '../store/useProjectsStore';
 import QuillEditor from './QuillEditor';
+import { validateWritingQuestion } from '../utils/validation';
 
 export default function WritingQuestionWizard({ sectionId, onClose, question }) {
   const [newQuestion, setNewQuestion] = useState(
@@ -11,10 +12,17 @@ export default function WritingQuestionWizard({ sectionId, onClose, question }) 
       answer: ''
     }
   );
+  const [errors, setErrors] = useState({});
   const { addQuestion, updateQuestion } = useProjectsStore();
   const isEditing = !!question;
 
   const handleSave = () => {
+    const validationErrors = validateWritingQuestion(newQuestion);
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
+
     if (isEditing) {
       updateQuestion(sectionId, newQuestion);
     } else {
@@ -24,6 +32,7 @@ export default function WritingQuestionWizard({ sectionId, onClose, question }) 
   };
 
   const handleQuestionFieldChange = (field, value) => {
+    setErrors({});
     setNewQuestion(prevQuestion => ({ ...prevQuestion, [field]: value }));
   };
 
@@ -41,6 +50,7 @@ export default function WritingQuestionWizard({ sectionId, onClose, question }) 
                     placeholder="Enter question"
                     minHeight={100}
                 />
+                {errors.text && <p className="text-red-500 text-xs mt-1">{errors.text}</p>}
             </div>
             <div className="mb-3">
                 <label className="block text-gray-700 text-sm mb-1 text-left">Answer</label>
@@ -51,6 +61,7 @@ export default function WritingQuestionWizard({ sectionId, onClose, question }) 
                     className="w-full px-3 py-2 border border-gray-300 rounded"
                     rows="4"
                 />
+                {errors.answer && <p className="text-red-500 text-xs mt-1">{errors.answer}</p>}
             </div>
           </div>
           <div className="items-center px-4 py-3">

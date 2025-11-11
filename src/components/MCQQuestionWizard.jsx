@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useProjectsStore } from '../store/useProjectsStore';
 import QuillEditor from './QuillEditor';
+import { validateMCQQuestion } from '../utils/validation';
 
 export default function MCQQuestionWizard({ sectionId, onClose, question }) {
   const [newQuestion, setNewQuestion] = useState(
@@ -12,10 +13,17 @@ export default function MCQQuestionWizard({ sectionId, onClose, question }) {
       correctAnswer: 0
     }
   );
+  const [errors, setErrors] = useState({});
   const { addQuestion, updateQuestion } = useProjectsStore();
   const isEditing = !!question;
 
   const handleSave = () => {
+    const validationErrors = validateMCQQuestion(newQuestion);
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
+
     if (isEditing) {
       updateQuestion(sectionId, newQuestion);
     } else {
@@ -25,10 +33,12 @@ export default function MCQQuestionWizard({ sectionId, onClose, question }) {
   };
 
   const handleQuestionFieldChange = (field, value) => {
+    setErrors({});
     setNewQuestion(prevQuestion => ({ ...prevQuestion, [field]: value }));
   };
 
   const handleOptionChange = (optIdx, value) => {
+    setErrors({});
     setNewQuestion(prevQuestion => {
         const options = prevQuestion.options.map((o, oi) => oi === optIdx ? value : o);
         return { ...prevQuestion, options };
@@ -36,6 +46,7 @@ export default function MCQQuestionWizard({ sectionId, onClose, question }) {
   };
 
   const handleAddOption = () => {
+    setErrors({});
     setNewQuestion(prevQuestion => ({
         ...prevQuestion,
         options: [...prevQuestion.options, '']
@@ -43,12 +54,13 @@ export default function MCQQuestionWizard({ sectionId, onClose, question }) {
   };
 
   const handleRemoveOption = (optIdx) => {
+    setErrors({});
     setNewQuestion(prevQuestion => {
         const options = prevQuestion.options.filter((_, oi) => oi !== optIdx);
         let correctAnswer = prevQuestion.correctAnswer;
         if (options.length === 0) {
             options.push('');
-            correctAnswer = 0;
+            correctAnswer = -1;
         } else if (correctAnswer >= options.length) {
             correctAnswer = options.length - 1;
         }
@@ -74,6 +86,7 @@ export default function MCQQuestionWizard({ sectionId, onClose, question }) {
                     placeholder="Enter question"
                     minHeight={50}
                 />
+                {errors.text && <p className="text-red-500 text-xs mt-1">{errors.text}</p>}
             </div>
             <div className="mb-3">
                 <label className="block text-gray-700 text-sm mb-2 text-left">Options</label>
@@ -105,6 +118,8 @@ export default function MCQQuestionWizard({ sectionId, onClose, question }) {
                     </button>
                     </div>
                 ))}
+                {errors.options && <p className="text-red-500 text-xs mt-1">{errors.options}</p>}
+                {errors.correctAnswer && <p className="text-red-500 text-xs mt-1">{errors.correctAnswer}</p>}
                 <div>
                     <button
                     type="button"
@@ -117,7 +132,7 @@ export default function MCQQuestionWizard({ sectionId, onClose, question }) {
                 </div>
             </div>
             <div className="flex justify-between items-center">
-                <div className="text-sm text-gray-600">Correct: {String.fromCharCode(65 + newQuestion.correctAnswer)}</div>
+                <div className="text-sm text-gray-600">Correct: {newQuestion.correctAnswer >= 0 ? String.fromCharCode(65 + newQuestion.correctAnswer) : 'None'}</div>
             </div>
           </div>
           <div className="items-center px-4 py-3">
