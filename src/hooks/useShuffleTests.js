@@ -9,6 +9,14 @@
  * @typedef {Object} Question
  * @property {string|number} id
  * @property {string} text
+ * @property {string} type - 'mcq' | 'filltheblank' | 'reading' | 'writing'
+ * @property {Array<string>} options - for mcq
+ * @property {number} correctAnswer - for mcq
+ * @property {Array<SubQuestion>} questions - for filltheblank and reading
+ *
+ * @typedef {Object} SubQuestion
+ * @property {string|number} id
+ * @property {string} text
  * @property {Array<string>} options
  * @property {number} correctAnswer
  */
@@ -34,6 +42,56 @@ function getPermutations(arr, k) {
 
   helper([], arr);
   return results;
+}
+
+// Shuffle array using Fisher-Yates algorithm
+function shuffleArray(arr) {
+  const newArr = [...arr];
+  for (let i = newArr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+  }
+  return newArr;
+}
+
+// Shuffle options for a single MCQ-style question and update correctAnswer
+function shuffleQuestionOptions(question) {
+  if (!question.options || question.options.length === 0) {
+    return question; // No options to shuffle
+  }
+
+  const originalCorrectOption = question.options[question.correctAnswer];
+  const shuffledOptions = shuffleArray(question.options);
+  const newCorrectIndex = shuffledOptions.indexOf(originalCorrectOption);
+
+  return {
+    ...question,
+    options: shuffledOptions,
+    correctAnswer: newCorrectIndex
+  };
+}
+
+// Shuffle options for all question types
+function shuffleQuestion(question) {
+  const type = question.type?.toLowerCase();
+
+  switch (type) {
+    case 'mcq':
+      // MCQ: shuffle options directly
+      return shuffleQuestionOptions(question);
+    case 'fill-in-the-blank':
+    case 'reading':
+      // These have nested questions array, shuffle each sub-question's options
+      if (question.questions && Array.isArray(question.questions)) {
+        return {
+          ...question,
+          questions: question.questions.map(subQ => shuffleQuestionOptions(subQ))
+        };
+      }
+      return question;
+    default:
+      return question;
+  }
 }
 
 export function useShuffleTests() {
@@ -97,11 +155,19 @@ export function useShuffleTests() {
 
     const newTests = [];
     for (let t = 0; t < maxTests; t++) {
-      const sections = masterSections.map((section, sIdx) => ({
-        id: section.id,
-        sectionName: section.sectionName,
-        questions: [...allSectionPerms[sIdx][t]] // unique permutation per test
-      }));
+      const sections = masterSections.map((section, sIdx) => {
+        // Get the questions for this test variant
+        const selectedQuestions = allSectionPerms[sIdx][t];
+        
+        // Shuffle options for each question
+        const shuffledQuestions = selectedQuestions.map(q => shuffleQuestion(q));
+
+        return {
+          id: section.id,
+          sectionName: section.sectionName,
+          questions: shuffledQuestions
+        };
+      });
 
       newTests.push({
         id: `${Date.now()}-${Math.floor(Math.random() * 100000)}`,
