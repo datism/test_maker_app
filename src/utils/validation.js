@@ -1,3 +1,7 @@
+export function isNonEmpty(text) {
+  return typeof text === 'string' && text.trim().length > 0;
+}
+
 export const validateProject = (project) => {
   const errors = {};
   if (!project.name) {
