@@ -7,7 +7,7 @@ import ProjectWizard from './components/ProjectWizard';
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename='/tstiu/'>
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<ProjectsList />} />
