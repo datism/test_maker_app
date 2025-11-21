@@ -1,16 +1,62 @@
-# React + Vite
+This is a web application for creating and managing tests. It provides a simple and intuitive interface for creating different types of questions and organizing them into projects.
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Features
 
-Currently, two official plugins are available:
+*   **Project Management:** Create and manage different projects or tests.
+*   **Question Wizards:** Step-by-step guides to create various types of questions, including:
+    *   Multiple Choice
+    *   Fill-in-the-Blank
+    *   Reading Comprehension
+    *   Writing
+*   **Test Preview:** Ability to see what the generated test will look like.
+*   **Export Options:** Export tests to DOCX and test's answer to XLSX formats.
+*   **Rich Text Editing:** A text editor for formatting question content.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Getting Started
 
-## React Compiler
+### Prerequisites
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+*   Node.js and npm (or yarn) installed on your machine.
 
-## Expanding the ESLint configuration
+### Installation
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+1.  Clone the repository:
+    ```bash
+    git clone <repository-url>
+    ```
+2.  Navigate to the project directory:
+    ```bash
+    cd test-maker-app
+    ```
+3.  Install the dependencies:
+    ```bash
+    npm install
+    ```
+
+### Running the Application
+
+To start the development server, run the following command:
+
+```bash
+npm run dev
+```
+
+This will start the application in development mode and open it in your default browser at `http://localhost:5173`.
+
+### Building the Application
+
+To create a production build of the application, run the following command:
+
+```bash
+npm run build
+```
+
+This will create a `dist` directory with the production-ready files.
+
+### Linting
+
+To lint the code, run the following command:
+
+```bash
+npm run lint
+```
