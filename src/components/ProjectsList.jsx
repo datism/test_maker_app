@@ -23,15 +23,15 @@ export default function ProjectsList() {
   if (!projects || !Array.isArray(projects)) return null;
 
   return (
-    <div className="max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">My Projects</h1>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4 sm:gap-0">
+        <div className="sm:flex-1 min-w-0">
+          <h1 className="pt-2 text-4xl font-bold text-gray-900 mb-2">My Projects</h1>
           <p className="text-gray-600">Manage your test projects and assessments</p>
         </div>
         <button 
           onClick={handleNewProject}
-          className="flex items-center gap-2 px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors shadow-md"
+          className="flex items-center gap-2 px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors shadow-md shrink-0"
         >
           <Plus size={20} />
           <span className="font-medium">New Project</span>

@@ -26,7 +26,7 @@ This is a web application for creating and managing tests. It provides a simple 
     ```
 2.  Navigate to the project directory:
     ```bash
-    cd test-maker-app
+    cd tstiu
     ```
 3.  Install the dependencies:
     ```bash
