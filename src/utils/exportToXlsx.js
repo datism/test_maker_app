@@ -31,11 +31,11 @@ const flattenQuestions = (sections) => {
   return questions;
 };
 
-export const exportToXlsx = async (project) => {
+export const exportToXlsx = async (projectOrTests) => {
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet('Answers');
 
-  const tests = project.tests || [];
+  const tests = projectOrTests.tests || [];
   if (tests.length === 0) return null;
 
   // ✅ Insert headers

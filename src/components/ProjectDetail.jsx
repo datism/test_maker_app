@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useShuffleTests } from '../hooks/useShuffleTests';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Shuffle, Plus, Calendar, FileText, HelpCircle, Trash2, Edit, Download, Eye } from 'lucide-react';
+import { ChevronLeft, Shuffle, Plus, Calendar, FileText, HelpCircle, Trash2, Edit, Download, Upload } from 'lucide-react';
 import ExportModal from './ExportModal';
 import { useProjectsStore } from '../store/useProjectsStore';
 
@@ -18,6 +18,7 @@ export default function ProjectDetail() {
   const [maxPerms, setMaxPerms] = useState(0);
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportTest, setExportTest] = useState(null);
+  const importFileInputRef = React.useRef(null);
 
   React.useEffect(() => {
     if (showShuffleModal && selectedProject?.masterTest?.sections) {
@@ -48,6 +49,43 @@ export default function ProjectDetail() {
   const handleTestClick = (test) => {
     selectTest(test);
     navigate(`/project/${selectedProject.id}/test/${test.id}`);
+  };
+
+  const handleImportTest = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const importedTest = JSON.parse(e.target.result);
+
+        // Basic validation
+        if (!importedTest.name || !Array.isArray(importedTest.sections)) {
+          throw new Error('Invalid test file format.');
+        }
+
+        // Create a new test object with new IDs to avoid conflicts
+        const newTest = {
+          ...importedTest,
+          id: Date.now() + Math.random(),
+          createdDate: new Date().toISOString(),
+          name: `${importedTest.name} (Imported)`, // Avoid name collision
+          sections: importedTest.sections.map(section => ({
+            ...section,
+            id: Date.now() + Math.random(),
+            questions: (section.questions || []).map(q => ({ ...q, id: Date.now() + Math.random() })),
+          })),
+        };
+
+        addTest(selectedProject.id, newTest);
+        alert('Test imported successfully!');
+      } catch (error) {
+        alert(`Failed to import test: ${error.message}`);
+      }
+    };
+    reader.readAsText(file);
+    event.target.value = null; // Reset file input
   };
 
   return (
@@ -206,6 +244,20 @@ export default function ProjectDetail() {
                 <Download size={18} />
                 <span>Export All</span>
               </button>
+              <button
+                onClick={() => importFileInputRef.current?.click()}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+              >
+                <Upload size={18} />
+                <span>Import Test</span>
+              </button>
+              <input
+                type="file"
+                ref={importFileInputRef}
+                onChange={handleImportTest}
+                className="hidden"
+                accept="application/json"
+              />
               <button
                 onClick={handleAddTest}
                 className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"

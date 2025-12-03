@@ -10,12 +10,14 @@ export default function ExportModal({ open, onClose, test }) {
   const { selectedProject } = useProjectsStore();
   const [instructions, setInstructions] = useState({});
   const [exportToExcel, setExportToExcel] = useState(false);
+  const [exportToJson, setExportToJson] = useState(false);
 
   useEffect(() => {
     if (open) {
       // Reset instructions when modal opens
       setInstructions({});
       setExportToExcel(false);
+      setExportToJson(false);
     }
   }, [open]);
 
@@ -45,24 +47,34 @@ export default function ExportModal({ open, onClose, test }) {
             />
           </div>
         ))}
-        {!test && (
-          <div className="mb-4">
-            <label className="flex items-center">
-              <input
-                type="checkbox"
-                checked={exportToExcel}
-                onChange={(e) => setExportToExcel(e.target.checked)}
-                className="mr-2"
-              />
-              <span>Export answers to Excel</span>
-            </label>
-          </div>
-        )}
+        <div className="mb-4">
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              checked={exportToExcel}
+              onChange={(e) => setExportToExcel(e.target.checked)}
+              className="mr-2"
+            />
+            <span>Export answers to Excel</span>
+          </label>
+        </div>
+        <div className="mb-4">
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              checked={exportToJson}
+              onChange={(e) => setExportToJson(e.target.checked)}
+              className="mr-2"
+            />
+            <span>Export to JSON</span>
+          </label>
+        </div>
         <div className="flex justify-end gap-3">
           <button onClick={onClose} className="px-4 py-2 bg-gray-200 rounded">Cancel</button>
           <button
             onClick={async () => {
               if (test) { // Handle single test export
+                const zip = new JSZip();
                 const testWithInstructions = {
                   ...test,
                   sections: test.sections.map((section, index) => ({
@@ -75,8 +87,23 @@ export default function ExportModal({ open, onClose, test }) {
                 }
                 const projectName = (selectedProject?.name || 'project').replace(/ /g, '_');
                 const testName = (test?.name || 'test').replace(/ /g, '_');
-                const filename = `${projectName}_${testName}.docx`;
-                await exportTestDocx({ test: testWithInstructions, filename });
+                const docxFilename = `${projectName}_${testName}.docx`;
+                const docxBlob = await exportTestDocx({ test: testWithInstructions, returnBlob: true });
+                if (docxBlob) {
+                  zip.file(docxFilename, docxBlob);
+                }
+                if (exportToExcel) {
+                  const xlsxBlob = await exportToXlsx({ tests: [test] });
+                  if (xlsxBlob) {
+                    zip.file(`${projectName}_${testName}_answers.xlsx`, xlsxBlob);
+                  }
+                }
+                if (exportToJson) {
+                  const jsonBlob = new Blob([JSON.stringify(test, null, 2)], { type: 'application/json' });
+                  zip.file(`${projectName}_${testName}.json`, jsonBlob);
+                }
+                const zipBlob = await zip.generateAsync({ type: 'blob' });
+                saveAs(zipBlob, `${projectName}_${testName}.zip`);
               } else { // Handle "Export All"
                 const allTests = selectedProject.tests || [];
                 if (allTests.length === 0) {
@@ -102,10 +129,15 @@ export default function ExportModal({ open, onClose, test }) {
                 }
 
                 if (exportToExcel) {
-                  const xlsxBlob = exportToXlsx(selectedProject);
+                  const xlsxBlob = await exportToXlsx(selectedProject);
                   if (xlsxBlob) {
                     zip.file(`${(selectedProject?.name || 'project').replace(/ /g, '_')}_answers.xlsx`, xlsxBlob);
                   }
+                }
+
+                if (exportToJson) {
+                  const jsonBlob = new Blob([JSON.stringify(selectedProject, null, 2)], { type: 'application/json' });
+                  zip.file(`${(selectedProject?.name || 'project').replace(/ /g, '_')}.json`, jsonBlob);
                 }
 
                 const zipBlob = await zip.generateAsync({ type: 'blob' });
